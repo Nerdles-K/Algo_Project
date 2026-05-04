@@ -6,23 +6,14 @@ import com.synchplay.model.Edge;
 
 import java.util.*;
 
-/**
- * 基于视频观看记录的好友推荐
- * 严格使用已有图结构：Node / Edge / Graph
- */
 public class FriendRecommendation {
 
     private final Graph graph;
 
-    // 传入已构建好的图
     public FriendRecommendation(Graph graph) {
         this.graph = graph;
     }
 
-    /**
-     * 核心接口：给用户ID，返回推荐好友列表
-     * 逻辑：看过相同视频 → 推荐为好友
-     */
     public List<Node> recommend(String userId) {
         // 1. 获取该用户看过的所有视频
         List<Node> myVideos = getWatchedVideos(userId);
@@ -58,11 +49,6 @@ public class FriendRecommendation {
         return result;
     }
 
-    // ==================== 辅助工具（完全适配原有结构） ====================
-
-    /**
-     * 获取一个用户观看过的所有视频
-     */
     private List<Node> getWatchedVideos(String userId) {
         List<Node> videos = new ArrayList<>();
         for (Edge e : graph.getOutEdges(userId)) {
@@ -73,9 +59,6 @@ public class FriendRecommendation {
         return videos;
     }
 
-    /**
-     * 获取所有看过某视频的用户
-     */
     private List<Node> getUsersWatchedVideo(String videoId) {
         List<Node> users = new ArrayList<>();
         for (Edge e : graph.getInEdges(videoId)) {
