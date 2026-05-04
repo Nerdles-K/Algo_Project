@@ -254,14 +254,86 @@ public class Graph {
      */
     public LinkedHashMap<Node, Double> getVideoPageRankScores(int iterations, double dampingFactor) {
         Map<String, Double> rankMap = computePageRank(iterations, dampingFactor);
-        List<Map.Entry<Node, Double>> entries = new ArrayList<>();
+        return sortVideoRanks(rankMap);
+    }
 
+    /**
+     * 基于观看行为的PageRank（对应 pagerank.py 的算法）
+     * 仅考虑 user → video 的 watch 边，每个用户将其"投票权"均分给看过的视频
+     * 收敛式迭代：maxIter 最大迭代次数，tol 收敛阈值
+     */
+    public Map<String, Double> computeWatchBasedPageRank(double alpha, int maxIter, double tol) {
+        List<Node> videos = getVideoNodes();
+        int n = videos.size();
+        if (n == 0) return Collections.emptyMap();
+
+        // 初始化
+        Map<String, Double> pr = new HashMap<>();
+        double initRank = 1.0 / n;
+        for (Node v : videos) {
+            pr.put(v.getNodeId(), initRank);
+        }
+
+        // 预计算每个用户看的视频列表（只考虑 watch 边）
+        Map<String, List<String>> userWatchedVideos = new HashMap<>();
+        for (Edge edge : getEdgesByType("watch")) {
+            String userId = edge.getSource().getNodeId();
+            String videoId = edge.getTarget().getNodeId();
+            userWatchedVideos.computeIfAbsent(userId, k -> new ArrayList<>()).add(videoId);
+        }
+
+        for (int iter = 0; iter < maxIter; iter++) {
+            Map<String, Double> newPr = new HashMap<>();
+            double baseRank = (1.0 - alpha) / n;
+            for (Node v : videos) {
+                newPr.put(v.getNodeId(), baseRank);
+            }
+
+            // 每个用户将 alpha * 1.0 均分给看过的视频
+            for (Map.Entry<String, List<String>> entry : userWatchedVideos.entrySet()) {
+                List<String> watched = entry.getValue();
+                if (watched.isEmpty()) continue;
+                double share = alpha / watched.size();
+                for (String videoId : watched) {
+                    newPr.put(videoId, newPr.getOrDefault(videoId, 0.0) + share);
+                }
+            }
+
+            // 归一化
+            double total = 0.0;
+            for (double val : newPr.values()) total += val;
+            if (total > 0) {
+                for (String vid : newPr.keySet()) {
+                    newPr.put(vid, newPr.get(vid) / total);
+                }
+            }
+
+            // 检查收敛
+            double diff = 0.0;
+            for (String vid : pr.keySet()) {
+                diff += Math.abs(newPr.getOrDefault(vid, 0.0) - pr.get(vid));
+            }
+            pr = newPr;
+            if (diff < tol) break;
+        }
+        return pr;
+    }
+
+    /**
+     * 获取视频节点的Watch-Based PageRank（按分数降序）
+     */
+    public LinkedHashMap<Node, Double> getVideoWatchBasedPageRankScores(double alpha, int maxIter, double tol) {
+        Map<String, Double> rankMap = computeWatchBasedPageRank(alpha, maxIter, tol);
+        return sortVideoRanks(rankMap);
+    }
+
+    private LinkedHashMap<Node, Double> sortVideoRanks(Map<String, Double> rankMap) {
+        List<Map.Entry<Node, Double>> entries = new ArrayList<>();
         for (Node node : nodeMap.values()) {
             if (node.isVideo()) {
                 entries.add(new AbstractMap.SimpleEntry<>(node, rankMap.getOrDefault(node.getNodeId(), 0.0)));
             }
         }
-
         entries.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
         LinkedHashMap<Node, Double> result = new LinkedHashMap<>();
         for (Map.Entry<Node, Double> entry : entries) {
@@ -353,28 +425,38 @@ public class Graph {
     // ============== 综合打分排序 ==============
 
     /**
-     * 综合打分：结合路径距离和PageRank热度对候选视频排序
-     * finalScore = α × (1 / distance) + β × normalizedPageRank
+     * 综合打分（默认使用全图PageRank）
      */
     public List<VideoScore> rankCandidatesByCompositeScore(String userNodeId, double alpha, double beta) {
-        // 1. BFS获取候选视频及距离
-        Map<String, Integer> videoDistanceMap = bfsVideoDistance(userNodeId, 3);
+        return rankCandidatesByCompositeScore(userNodeId, alpha, beta, "full");
+    }
 
+    /**
+     * 综合打分：结合路径距离和PageRank热度对候选视频排序
+     * @param prMode "full" 全图PageRank | "watch" 组员的watch-based PageRank (pagerank.py)
+     */
+    public List<VideoScore> rankCandidatesByCompositeScore(String userNodeId, double alpha, double beta, String prMode) {
+        Map<String, Integer> videoDistanceMap = bfsVideoDistance(userNodeId, 3);
         if (videoDistanceMap.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 2. 计算PageRank
-        Map<String, Double> pageRankScores = computePageRank(20, 0.85);
+        // 选择PageRank算法
+        Map<String, Double> pageRankScores;
+        if ("watch".equals(prMode)) {
+            pageRankScores = computeWatchBasedPageRank(0.85, 50, 1e-6);
+        } else {
+            pageRankScores = computePageRank(20, 0.85);
+        }
 
-        // 3. 归一化PageRank
+        // 归一化
         double maxPR = 0.0;
         for (Double score : pageRankScores.values()) {
             if (score > maxPR) maxPR = score;
         }
         final double maxPageRank = maxPR > 0 ? maxPR : 1.0;
 
-        // 4. 计算综合分
+        // 计算综合分
         List<VideoScore> results = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : videoDistanceMap.entrySet()) {
             String videoId = entry.getKey();

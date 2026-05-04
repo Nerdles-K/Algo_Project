@@ -173,15 +173,17 @@ public class SynchPlayServer {
                 String userId = params.getOrDefault("userId", "");
                 double alpha = Double.parseDouble(params.getOrDefault("alpha", "0.4"));
                 double beta = Double.parseDouble(params.getOrDefault("beta", "0.6"));
+                String prMode = params.getOrDefault("prMode", "full");
 
                 if (userId.isEmpty() || graph.getNode(userId) == null) {
                     sendJson(ex, 400, "{\"error\":\"Invalid userId\"}");
                     return;
                 }
 
-                List<Graph.VideoScore> results = graph.rankCandidatesByCompositeScore(userId, alpha, beta);
+                List<Graph.VideoScore> results = graph.rankCandidatesByCompositeScore(userId, alpha, beta, prMode);
                 StringBuilder json = new StringBuilder();
                 json.append("{\"userId\":").append(jsonEscape(userId));
+                json.append(",\"prMode\":").append(jsonEscape(prMode));
                 json.append(",\"alpha\":").append(alpha);
                 json.append(",\"beta\":").append(beta);
                 json.append(",\"totalCandidates\":").append(results.size());

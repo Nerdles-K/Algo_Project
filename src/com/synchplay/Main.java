@@ -121,8 +121,43 @@ public class Main {
             System.out.printf("  有社交连接的用户: %d  平均LCC: %.4f  高茧房风险用户: %d%n",
                     totalWithNeighbors, avgLCC, echoChamberCount);
 
+            // Watch-Based PageRank 演示（组员 Python 算法）
+            System.out.println("\n【Watch-Based PageRank Top 5（组员算法, 仅user→video边）】");
+            LinkedHashMap<Node, Double> watchRanks = graph.getVideoWatchBasedPageRankScores(0.85, 50, 1e-6);
+            int wr = 1;
+            for (Map.Entry<Node, Double> entry : watchRanks.entrySet()) {
+                if (wr > 5) break;
+                System.out.printf("  %d. %s (score=%.6f)%n",
+                        wr,
+                        entry.getKey().getNodeId(),
+                        entry.getValue());
+                wr++;
+            }
+
+            // 综合打分演示（双模式对比）
+            System.out.println("\n【综合打分推荐 Top 5 —— 全图PageRank vs Watch-Based PageRank】");
+            if (!users.isEmpty()) {
+                Node demoUser = users.get(0);
+                System.out.println("  目标用户: " + demoUser.getNodeId());
+                System.out.println("\n  --- 全图PageRank模式 (prMode=full) ---");
+                List<Graph.VideoScore> fullResults = graph.rankCandidatesByCompositeScore(demoUser.getNodeId(), 0.4, 0.6, "full");
+                for (int i = 0; i < Math.min(5, fullResults.size()); i++) {
+                    Graph.VideoScore vs = fullResults.get(i);
+                    System.out.printf("    %d. %-45s dist=%d final=%.6f%n",
+                            i + 1, vs.video.getDisplayName().length() > 43 ? vs.video.getDisplayName().substring(0, 43) : vs.video.getDisplayName(),
+                            vs.distance, vs.finalScore);
+                }
+                System.out.println("\n  --- Watch-Based PageRank模式 (prMode=watch) ---");
+                List<Graph.VideoScore> watchResults = graph.rankCandidatesByCompositeScore(demoUser.getNodeId(), 0.4, 0.6, "watch");
+                for (int i = 0; i < Math.min(5, watchResults.size()); i++) {
+                    Graph.VideoScore vs = watchResults.get(i);
+                    System.out.printf("    %d. %-45s dist=%d final=%.6f%n",
+                            i + 1, vs.video.getDisplayName().length() > 43 ? vs.video.getDisplayName().substring(0, 43) : vs.video.getDisplayName(),
+                            vs.distance, vs.finalScore);
+                }
+            }
+
             // 综合打分演示
-            System.out.println("\n【综合打分推荐 Top 10（α=0.4 β=0.6）】");
             if (!users.isEmpty()) {
                 Node demoUser = users.get(0);
                 List<Graph.VideoScore> scoredResults =
