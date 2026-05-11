@@ -11,12 +11,12 @@ mkdir -p bin
 JAVAC_OPTS="-d bin --add-modules jdk.httpserver"
 CP="bin:lib/sqlite-jdbc.jar:lib/slf4j-api.jar:lib/slf4j-nop.jar"
 
-echo "[1/4] 编译模型类..."
+echo "[1/5] 编译模型类..."
 javac $JAVAC_OPTS src/com/synchplay/model/*.java 2>&1
 if [ $? -ne 0 ]; then echo "✗ 模型类编译失败"; exit 1; fi
 echo "✓ 模型类编译成功"
 
-echo "[2/4] 编译加载器类..."
+echo "[2/5] 编译加载器类..."
 javac $JAVAC_OPTS -cp "$CP" src/com/synchplay/loader/*.java 2>&1
 if [ $? -ne 0 ]; then echo "✗ 加载器类编译失败"; exit 1; fi
 echo "✓ 加载器类编译成功"

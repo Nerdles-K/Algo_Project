@@ -115,7 +115,8 @@ async function loadRecommendations() {
   try {
     const alpha = parseFloat($('alphaSlider').value);
     const beta = parseFloat($('betaSlider').value);
-    const res = await fetch(API_BASE + '/api/recommend?userId=' + encodeURIComponent(userId) + '&alpha=' + alpha + '&beta=' + beta);
+    const prMode = $('prModeSelect').value;
+    const res = await fetch(API_BASE + '/api/recommend?userId=' + encodeURIComponent(userId) + '&alpha=' + alpha + '&beta=' + beta + '&prMode=' + encodeURIComponent(prMode));
     const data = await res.json();
     if (data.error) { $('recommendResult').innerHTML = '<div class="empty">' + data.error + '</div>'; return; }
 
@@ -123,6 +124,7 @@ async function loadRecommendations() {
     summary += '<div class="summary-item"><div class="val">' + esc(data.userId) + '</div><div class="lbl">User</div></div>';
     summary += '<div class="summary-item"><div class="val">' + data.totalCandidates + '</div><div class="lbl">Candidates</div></div>';
     summary += '<div class="summary-item"><div class="val">&alpha;=' + alpha + ' &beta;=' + beta + '</div><div class="lbl">Weights</div></div>';
+    summary += '<div class="summary-item"><div class="val">' + esc(data.prMode || prMode) + '</div><div class="lbl">PR Mode</div></div>';
     if (data.recommendations.length > 0) {
       const top = data.recommendations[0];
       summary += '<div class="summary-item"><div class="val" style="font-size:16px">' + esc(top.title.substring(0, 25)) + (top.title.length > 25 ? '...' : '') + '</div><div class="lbl">Top Pick</div></div>';
@@ -139,8 +141,9 @@ async function loadRecommendations() {
     data.recommendations.slice(0, 12).forEach(r => {
       const videoId = r.videoId.replace('video_', '');
       const thumbUrl = 'https://img.youtube.com/vi/' + videoId + '/mqdefault.jpg';
+      const youtubeUrl = 'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId);
       const rankClass = r.rank <= 3 ? ' top' : '';
-      html += '<div class="video-card">' +
+      html += '<a class="video-card" href="' + youtubeUrl + '" target="_blank" rel="noopener noreferrer">' +
         '<div class="thumb-wrap">' +
           '<span class="rank-num' + rankClass + '">' + r.rank + '</span>' +
           '<img class="thumb" src="' + thumbUrl + '" alt="thumbnail" loading="lazy" ' +
@@ -156,7 +159,7 @@ async function loadRecommendations() {
             '<span class="score-tag final">score ' + r.finalScore + '</span>' +
           '</div>' +
         '</div>' +
-      '</div>';
+      '</a>';
     });
     html += '</div>';
     if (data.recommendations.length > 12) {

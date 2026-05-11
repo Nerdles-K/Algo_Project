@@ -36,6 +36,11 @@
         <input type="range" id="alphaSlider" min="0" max="1" step="0.1" value="0.4" style="width:100px;vertical-align:middle" oninput="onSliderChange()">
         <label style="margin-left:8px">β (popularity): <span id="betaVal">0.6</span></label>
         <input type="range" id="betaSlider" min="0" max="1" step="0.1" value="0.6" style="width:100px;vertical-align:middle" oninput="onSliderChange()">
+        <label style="margin-left:12px">PageRank mode</label>
+        <select id="prModeSelect" onchange="loadRecommendations()" style="vertical-align:middle">
+          <option value="full">Full-graph</option>
+          <option value="watch">Watch-based</option>
+        </select>
       </div>
     </div>
     <div id="recommendSummary" style="display:none"></div>
