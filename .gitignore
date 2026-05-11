@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+.Rhistory
+
+# Maven build output
+backend-springboot/target/
+
+# Node / Vite
+frontend-vue/node_modules/
+frontend-vue/dist/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
