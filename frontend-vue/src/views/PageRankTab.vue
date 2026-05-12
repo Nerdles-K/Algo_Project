@@ -38,8 +38,12 @@ function barWidth(score) {
   return Math.max(4, Math.round((score / maxScore()) * 200))
 }
 
-function onThumbError(id) {
+function markFailed(id) {
   failedIds.value = { ...failedIds.value, [id]: true }
+}
+
+function onThumbLoad(e, id) {
+  if (e.target.naturalWidth <= 120) markFailed(id)
 }
 </script>
 
@@ -92,7 +96,8 @@ function onThumbError(id) {
                 class="table-thumb"
                 :src="`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`"
                 :alt="v.title"
-                @error="onThumbError(v.id)"
+                @load="e => onThumbLoad(e, v.id)"
+                @error="markFailed(v.id)"
               />
             </td>
             <td>

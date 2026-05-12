@@ -36,8 +36,12 @@ function updateAlpha(v) {
   beta.value = parseFloat((1 - alpha.value).toFixed(2))
 }
 
-function onThumbError(id) {
+function markFailed(id) {
   failedIds.value = { ...failedIds.value, [id]: true }
+}
+
+function onThumbLoad(e, id) {
+  if (e.target.naturalWidth <= 120) markFailed(id)
 }
 
 onMounted(load)
@@ -93,7 +97,8 @@ onMounted(load)
           class="thumb"
           :src="`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`"
           :alt="v.title"
-          @error="onThumbError(v.id)"
+          @load="e => onThumbLoad(e, v.id)"
+          @error="markFailed(v.id)"
         />
         <div class="card-body">
           <div class="title">{{ v.title }}</div>
