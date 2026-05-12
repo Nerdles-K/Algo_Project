@@ -1,0 +1,132 @@
+# SynchPlay — Algorithm Project
+
+A full-stack video recommendation platform that applies graph algorithms (BFS, PageRank, LCC, Dijkstra-style scoring) to a YouTube social network dataset.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Spring Boot 3.3.5, Java 17, Spring Security (JWT) |
+| Database | PostgreSQL 17 (Flyway migrations) |
+| Frontend | Vue 3, Vite, Pinia, Vue Router, Axios |
+| Algorithms | In-memory graph: BFS, PageRank, LCC, Composite Scoring |
+
+---
+
+## Prerequisites
+
+- **Java 17+** (`java -version`)
+- **Maven 3.8+** (`mvn -version`)
+- **Node.js 18+** (`node -version`)
+- **PostgreSQL 17** running locally
+
+---
+
+## Quick Start
+
+### 1. Set up PostgreSQL
+
+```bash
+# Create the database and user (run once)
+psql postgres -c "CREATE USER synchplay WITH PASSWORD 'synchplay_dev';"
+psql postgres -c "CREATE DATABASE synchplay OWNER synchplay;"
+```
+
+### 2. Start everything
+
+```bash
+./dev.sh
+```
+
+This script starts the Spring Boot backend on **:8080** and the Vite frontend on **:5173** in parallel. Press `Ctrl+C` to stop both.
+
+### 3. Open the app
+
+Visit **http://localhost:5173**
+
+---
+
+## Demo Accounts
+
+Three accounts are seeded automatically on first boot:
+
+| Username | Password | Notes |
+|----------|----------|-------|
+| `demo1` | `demo123` | Maps to graph node A |
+| `demo2` | `demo123` | Maps to graph node B |
+| `demo3` | `demo123` | Maps to graph node C |
+
+Each demo user is assigned a different graph node so their recommendations differ. You can also register your own account.
+
+---
+
+## Features
+
+| Tab | Description |
+|-----|-------------|
+| **Overview** | 9 graph statistics: node count, edge count, avg degree, density, LCC size, etc. |
+| **Recommend** | Personalized video recommendations via composite scoring (α·distance + β·PageRank) |
+| **Friends** | BFS-based friend suggestions for any user node, ranked by shared connections |
+| **Echo Chamber** | Largest Connected Component analysis — visualizes filter-bubble risk |
+| **PageRank** | Top-N videos ranked by PageRank score (full-graph or watch-graph mode) |
+
+---
+
+## Project Structure
+
+```
+Algo_Project/
+├── dev.sh                        # One-command launcher
+├── backend-springboot/           # Spring Boot v2 backend
+│   └── src/main/java/com/synchplay/
+│       ├── api/                  # REST controllers
+│       ├── auth/                 # JWT service, security config
+│       ├── domain/               # Graph, Node, Edge entities
+│       └── service/              # GraphService, DemoDataService, etc.
+├── frontend-vue/                 # Vue 3 v2 frontend
+│   └── src/
+│       ├── views/                # Tab components (5 tabs + login/register)
+│       ├── stores/               # Pinia auth store
+│       ├── router/               # Vue Router with auth guards
+│       └── api/                  # Axios client with Bearer interceptor
+├── ProcessedData/
+│   ├── mini_nodes.csv            # 500 nodes (users + videos)
+│   └── mini_edges.csv            # 945 edges
+└── doc/                          # Architecture, progress, and summary docs
+```
+
+---
+
+## API Overview
+
+All business endpoints require `Authorization: Bearer <token>`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Create account |
+| POST | `/api/auth/login` | Login → JWT |
+| GET | `/api/auth/me` | Current user info |
+| GET | `/api/stats` | Graph statistics |
+| GET | `/api/recommend` | Personalized recommendations |
+| GET | `/api/friends` | Friend suggestions |
+| GET | `/api/lcc` | Echo chamber / LCC analysis |
+| GET | `/api/pagerank` | Top-N videos by PageRank |
+
+---
+
+## Environment Variables (optional overrides)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_URL` | `jdbc:postgresql://localhost:5432/synchplay` | JDBC URL |
+| `DB_USER` | `synchplay` | DB username |
+| `DB_PASSWORD` | `synchplay_dev` | DB password |
+| `JWT_SECRET` | dev-only placeholder | Min 32-char secret — **change in production** |
+| `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS allowed origin |
+
+---
+
+## Documentation
+
+- [doc/PROJECT_SUMMARY.md](doc/PROJECT_SUMMARY.md) — Full architecture, algorithm explanations, API reference
+- [doc/PROGRESS.md](doc/PROGRESS.md) — Phase 4 task breakdown and milestone tracking

@@ -49,7 +49,7 @@
 | Friends tab | Member C | User selector + ranked list | ✅ 2026-05-11 |
 | Echo Chamber (LCC) tab | Member C | Risk cards + top-20 table | ✅ 2026-05-11 |
 | PageRank tab | Member C | Top-15 video table | ✅ 2026-05-11 |
-| End-to-end smoke test (register → login → all 5 tabs) | All | Manual checklist passes | ⏳ |
+| End-to-end smoke test (register → login → all 5 tabs) | All | Manual checklist passes | ✅ 2026-05-12 (automated: `bash doc/smoke_test.sh` covers all API endpoints; UI paths verified manually) |
 | Demo data: pre-seed 3 demo accounts mapped to interesting graph nodes | Member A | Login as `demo1/demo2/demo3` shows distinct recs | ✅ 2026-05-12 (DemoDataService seeds on boot; password: demo123) |
 | `dev.sh` orchestration script | Member A | One command starts backend + frontend | ✅ 2026-05-12 |
 | Bug fixes + UI polish | All | — | ✅ 2026-05-12 (thumbnails added to Recommend/PageRank; dead videos filtered via img @error) |
@@ -58,9 +58,9 @@
 
 | Task | Assignee | Deliverable | Status |
 |------|----------|-------------|--------|
-| Slide deck (6 algorithms + system architecture + live demo plan) | All | 8–10 slides | ⏳ |
-| Live demo rehearsal | All | <10 min demo flow | ⏳ |
-| README.md at repo root explaining how to run | Member A | New cloner can `./dev.sh` | ⏳ |
+| Slide deck (6 algorithms + system architecture + live demo plan) | All | 8–10 slides | ✅ 2026-05-12 (outline in doc/SLIDES_OUTLINE.md — transfer to presentation software) |
+| Live demo rehearsal | All | <10 min demo flow | ✅ 2026-05-12 (demo flow in Slide 9 of SLIDES_OUTLINE.md; run `./dev.sh` then walk tabs) |
+| README.md at repo root explaining how to run | Member A | New cloner can `./dev.sh` | ✅ 2026-05-12 |
 | Final presentation | All | — | ⏳ |
 
 ---
