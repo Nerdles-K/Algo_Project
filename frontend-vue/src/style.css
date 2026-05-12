@@ -146,15 +146,22 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; display: bl
 .video-card .channel { font-size: 12px; color: var(--accent2); margin-bottom: 8px; }
 .video-card .meta { font-size: 12px; color: var(--text-dim); display: flex; gap: 12px; }
 .video-card .score { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
-.video-card .dist-badge {
+.video-card .badge-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.video-card .dist-badge,
+.video-card .pop-badge {
   display: inline-block;
   background: var(--surface2);
-  color: var(--accent2);
   font-size: 11px;
   padding: 1px 6px;
   border-radius: 4px;
-  margin-top: 8px;
 }
+.video-card .dist-badge { color: var(--accent2); }
+.video-card .pop-badge  { color: #ffb55a; }
 .table-thumb {
   width: 120px;
   aspect-ratio: 16/9;

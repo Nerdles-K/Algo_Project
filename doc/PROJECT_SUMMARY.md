@@ -328,39 +328,55 @@ Watch 模式更聚焦"纯观看行为"定义的热度，全图模式则融合社
 
 ---
 
-### 算法 4：综合打分公式 —— 最终推荐排序
+### 算法 4：综合打分公式 —— 最终推荐排序（v2 升级版）
 
-**目的**：将 BFS 的距离信号和 PageRank 的热度信号融合为最终分数。
+**目的**：把"距离"、"全局影响力"、"原始热度"三种异质信号融合为一个最终分。
 
-**方法**：`Graph.rankCandidatesByCompositeScore(nodeId, alpha, beta, prMode)`
+**方法**：`Graph.rankCandidatesByCompositeScore(nodeId, alpha, beta, gamma, prMode)`
 
 **公式：**
 ```
-最终分 = α × (1 / 路径距离) + β × 归一化PageRank
+最终分 = α · (1 / 加权距离)              ← 社交近度（Dijkstra）
+       + β · 归一化PageRank              ← 全局影响力
+       + γ · 归一化popularity             ← 原始 views + likes 热度
 
-α = 距离权重（越大越偏好"朋友直接看的视频"）
-β = 热度权重（越大越偏好"全局热门视频"）
-α + β = 1，前端通过滑块实时调整
+α + β + γ = 1（后端自动归一化，前端三个独立滑块）
+默认 α=0.5, β=0.3, γ=0.2 —— 偏好"朋友看过 + 略带全局热度"
 ```
 
-**算法步骤（α=0.4, β=0.6 为例）：**
+**Dijkstra 加权距离**（替代 v1 的 BFS 单位距离）使用真实边权：
+- `watch` 边 = 0.1（最强信号 —— 朋友真的看了这个视频）
+- `similar` 边 = 0.5
+- `social` 边 = 1.0（最弱 —— 仅"是朋友"还不够）
+
+距离越小越近，前端展示保留 3 位小数。
+
+**Popularity 特征**（log 尺度，避免病毒视频独占）：
 ```
-Step 1: BFS 3-hop 获取候选视频及距离
-  {video_A: dist=1, video_B: dist=1, video_C: dist=3, ...}
-
-Step 2: 计算 PageRank（全图 或 watch 模式）
-
-Step 3: 归一化 PR → 压缩到 [0, 1]
-
-Step 4: 计算最终分
-  video_A (dist=1, normPR=0.914): 0.4×1 + 0.6×0.914 = 0.948 ← Top 1
-  video_C (dist=3, normPR=0.862): 0.4×0.333 + 0.6×0.862 = 0.651
-  video_B (dist=1, normPR=0.112): 0.4×1 + 0.6×0.112 = 0.467
-
-Step 5: 降序输出 Top N
+popularity(v) = 0.6 · log(1+views) / log(1+max_views)
+              + 0.4 · log(1+likes) / log(1+max_likes)
 ```
 
-**v2 特性**：`/api/recommend` 通过 `@AuthenticationPrincipal` 自动获取当前登录用户的 `graphNodeId`，无需手动传 userId。
+**算法步骤（α=0.5, β=0.3, γ=0.2）：**
+```
+Step 1: Dijkstra 加权最短路径，cap=3.0
+  → {video_A: d=0.1, video_B: d=1.1, video_C: d=2.1, ...}
+
+Step 2: 计算 PageRank（full 或 watch 模式）+ 归一化
+
+Step 3: 计算 popularity 子分（views/likes log-normalized）
+
+Step 4: 归一化权重 α/β/γ（保证和=1）
+
+Step 5: 最终分 = aN · (1/d) + bN · normPR + gN · popularity
+
+Step 6: 降序 Top N
+```
+
+**v2 改造点**：
+- 引入 **Dijkstra** 替换 BFS：满足"使用 edge weight"的承诺。
+- 加入 **popularity 特征**：满足"考虑更多特征"的承诺。
+- 前端三滑块（α/β/γ）+ 卡片新增 popularity 徽章，可视化每个子分对最终排序的贡献。
 
 ---
 
@@ -454,7 +470,7 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 |------|------|------|---------|
 | `/api/stats` | GET | — | 图统计（节点数、边数、密度等） |
 | `/api/users` | GET | — | 全部 100 个用户列表 |
-| `/api/recommend` | GET | `alpha`(0.6), `beta`(0.4), `prMode`(full\|watch), `top`(20) | BFS + PageRank + 综合打分；当前登录用户自动作为目标 |
+| `/api/recommend` | GET | `alpha`(0.5), `beta`(0.3), `gamma`(0.2), `prMode`(full\|watch), `top`(20) | Dijkstra + PageRank + popularity 综合打分；当前登录用户自动作为目标 |
 | `/api/friends` | GET | `top`(10) | 好友推荐（协同过滤） |
 | `/api/lcc` | GET | — | 全部用户 LCC + 风险等级 |
 | `/api/pagerank` | GET | `prMode`(full\|watch), `top`(15) | 视频 PageRank 热度排行 |
@@ -549,7 +565,7 @@ npm run dev
 | BFS 召回 | 2–3 层异构图遍历 | ✅ |
 | PageRank（全图） | 迭代热度计算，20轮，d=0.85 | ✅ |
 | PageRank（Watch） | 收敛式，仅 watch 边，tol=1e-6 | ✅ |
-| 综合打分 | α×距离 + β×热度 | ✅ |
+| 综合打分（升级版） | α·(1/Dijkstra距离) + β·PageRank + γ·popularity | ✅ |
 | LCC 茧房检测 | 全用户 LCC + 风险分级 | ✅ |
 | 好友推荐 | 共同观看协同过滤 | ✅ |
 | PostgreSQL 数据库 | Flyway 建表 + 幂等导入 | ✅ |

@@ -2,14 +2,26 @@
 import { ref, computed, onMounted } from 'vue'
 import client from '../api/client'
 
-const alpha = ref(0.6)
-const beta = ref(0.4)
+const alpha = ref(0.5)
+const beta = ref(0.3)
+const gamma = ref(0.2)
 const prMode = ref('full')
 const top = ref(20)
 const loading = ref(false)
 const error = ref('')
 const result = ref(null)
 const failedIds = ref({})
+
+const weightSum = computed(() => alpha.value + beta.value + gamma.value)
+const normalized = computed(() => {
+  const s = weightSum.value
+  if (s <= 0) return { a: 0, b: 0, g: 0 }
+  return {
+    a: (alpha.value / s).toFixed(2),
+    b: (beta.value  / s).toFixed(2),
+    g: (gamma.value / s).toFixed(2),
+  }
+})
 
 const visibleRecs = computed(() =>
   result.value?.recommendations.filter(v => !failedIds.value[v.id]) ?? []
@@ -21,7 +33,13 @@ async function load() {
   failedIds.value = {}
   try {
     const res = await client.get('/api/recommend', {
-      params: { alpha: alpha.value, beta: beta.value, prMode: prMode.value, top: top.value },
+      params: {
+        alpha: alpha.value,
+        beta: beta.value,
+        gamma: gamma.value,
+        prMode: prMode.value,
+        top: top.value,
+      },
     })
     result.value = res.data
   } catch (e) {
@@ -29,11 +47,6 @@ async function load() {
   } finally {
     loading.value = false
   }
-}
-
-function updateAlpha(v) {
-  alpha.value = parseFloat(v)
-  beta.value = parseFloat((1 - alpha.value).toFixed(2))
 }
 
 function markFailed(id) {
@@ -54,13 +67,18 @@ onMounted(load)
     <div class="controls">
       <div style="display:flex;align-items:center;gap:8px">
         <label>α (distance)</label>
-        <input type="range" min="0" max="1" step="0.05" :value="alpha"
-          @input="e => updateAlpha(e.target.value)" />
-        <span class="value-tag">{{ alpha }}</span>
+        <input type="range" min="0" max="1" step="0.05" v-model.number="alpha" />
+        <span class="value-tag">{{ alpha.toFixed(2) }}</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <label>β (PageRank)</label>
-        <span class="value-tag">{{ beta }}</span>
+        <input type="range" min="0" max="1" step="0.05" v-model.number="beta" />
+        <span class="value-tag">{{ beta.toFixed(2) }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label>γ (popularity)</label>
+        <input type="range" min="0" max="1" step="0.05" v-model.number="gamma" />
+        <span class="value-tag">{{ gamma.toFixed(2) }}</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <label>Mode</label>
@@ -76,7 +94,7 @@ onMounted(load)
 
     <div v-if="result" class="summary-bar">
       <span>Graph node: <b>{{ result.graphNodeId }}</b></span>
-      <span>α=<b>{{ result.alpha }}</b> β=<b>{{ result.beta }}</b></span>
+      <span>weights (normalized): α=<b>{{ result.alpha }}</b> β=<b>{{ result.beta }}</b> γ=<b>{{ result.gamma }}</b></span>
       <span>Mode: <b>{{ result.prMode }}</b></span>
       <span>Showing: <b>{{ visibleRecs.length }}</b> / {{ result.count }}</span>
     </div>
@@ -107,7 +125,10 @@ onMounted(load)
             <span>👁 {{ Number(v.views).toLocaleString() }}</span>
             <span>👍 {{ Number(v.likes).toLocaleString() }}</span>
           </div>
-          <div class="dist-badge">dist: {{ v.distance }}</div>
+          <div class="badge-row">
+            <span class="dist-badge">dist: {{ v.distance }}</span>
+            <span class="pop-badge">pop: {{ v.popularityScore.toFixed(3) }}</span>
+          </div>
           <div class="score">score: {{ v.finalScore.toFixed(4) }}</div>
         </div>
       </a>

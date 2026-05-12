@@ -84,14 +84,27 @@ PR(v) = (1-d)/N + d · Σ PR(u)/out(u)   [d = 0.85, converges in ~30 iters]
 
 ## Slide 6 — Algorithm 3: Composite Scoring & Recommendation
 
-**Combining BFS Distance + PageRank**
+**Combining 3 weighted features:**
 
 ```
-finalScore(v) = α · (1 / BFS_distance) + β · PageRank(v)
-                α + β = 1   (user-adjustable via slider)
+finalScore(v) = α · (1 / Dijkstra_dist(u,v))          ← social closeness
+              + β · normalizedPageRank(v)              ← global influence
+              + γ · normalizedPopularity(v)            ← raw views + likes
+                α + β + γ = 1   (auto-normalized from 3 sliders)
 ```
 
-**α = 0.6, β = 0.4** (default): prefer socially-close content, tempered by global popularity
+**Dijkstra weighted distance** uses real edge weights:
+- watch edges = 0.1  (strong signal — actual viewing)
+- similar edges = 0.5
+- social edges = 1.0  (weaker signal)
+
+**Popularity feature** (log-scaled to avoid viral domination):
+```
+popularity(v) = 0.6 · log(1+views)/log(1+maxViews)
+              + 0.4 · log(1+likes)/log(1+maxLikes)
+```
+
+**Defaults:** α=0.5, β=0.3, γ=0.2 (privileges social closeness)
 
 **Filtering:**
 - Videos already watched by the user are excluded

@@ -424,91 +424,147 @@ public class Graph {
 
     // ============== 综合打分排序 ==============
 
+    /** Default Dijkstra distance cap. With edge weights 0.1 (watch), 0.5 (similar), 1.0 (social),
+     *  a cap of 3.0 lets us reach ~3 social hops + a watch edge. */
+    private static final double DEFAULT_MAX_DISTANCE = 3.0;
+
     /**
-     * 综合打分（默认使用全图PageRank）
+     * 综合打分（默认使用全图PageRank，γ=0 等价旧行为）
      */
     public List<VideoScore> rankCandidatesByCompositeScore(String userNodeId, double alpha, double beta) {
-        return rankCandidatesByCompositeScore(userNodeId, alpha, beta, "full");
+        return rankCandidatesByCompositeScore(userNodeId, alpha, beta, 0.0, "full");
+    }
+
+    public List<VideoScore> rankCandidatesByCompositeScore(String userNodeId, double alpha, double beta, String prMode) {
+        return rankCandidatesByCompositeScore(userNodeId, alpha, beta, 0.0, prMode);
     }
 
     /**
-     * 综合打分：结合路径距离和PageRank热度对候选视频排序
-     * @param prMode "full" 全图PageRank | "watch" 组员的watch-based PageRank (pagerank.py)
+     * 综合打分：α·(1/d) + β·PR + γ·popularity
+     *   - distance：Dijkstra 加权最短路径（利用 edge weight）
+     *   - PR：全图或 watch-based PageRank
+     *   - popularity：log(views) 与 log(likes) 的归一化加权和
+     * 三个权重会自动归一化到和为 1。
+     *
+     * @param prMode "full" 全图PageRank | "watch" watch-based PageRank
      */
-    public List<VideoScore> rankCandidatesByCompositeScore(String userNodeId, double alpha, double beta, String prMode) {
-        Map<String, Integer> videoDistanceMap = bfsVideoDistance(userNodeId, 3);
+    public List<VideoScore> rankCandidatesByCompositeScore(
+            String userNodeId, double alpha, double beta, double gamma, String prMode) {
+
+        Map<String, Double> videoDistanceMap = dijkstraVideoDistance(userNodeId, DEFAULT_MAX_DISTANCE);
         if (videoDistanceMap.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 选择PageRank算法
-        Map<String, Double> pageRankScores;
-        if ("watch".equals(prMode)) {
-            pageRankScores = computeWatchBasedPageRank(0.85, 50, 1e-6);
-        } else {
-            pageRankScores = computePageRank(20, 0.85);
-        }
+        // PageRank
+        Map<String, Double> pageRankScores = "watch".equals(prMode)
+                ? computeWatchBasedPageRank(0.85, 50, 1e-6)
+                : computePageRank(20, 0.85);
 
-        // 归一化
-        double maxPR = 0.0;
-        for (Double score : pageRankScores.values()) {
-            if (score > maxPR) maxPR = score;
-        }
-        final double maxPageRank = maxPR > 0 ? maxPR : 1.0;
+        double maxPR = pageRankScores.values().stream().max(Double::compare).orElse(1.0);
+        if (maxPR <= 0) maxPR = 1.0;
 
-        // 计算综合分
+        // Popularity：用 log 尺度归一化，避免极端 viral 视频垄断
+        double maxLogViews = 0.0, maxLogLikes = 0.0;
+        for (String vid : videoDistanceMap.keySet()) {
+            Node v = getNode(vid);
+            if (v == null) continue;
+            maxLogViews = Math.max(maxLogViews, Math.log1p(parseLongAttr(v, "views")));
+            maxLogLikes = Math.max(maxLogLikes, Math.log1p(parseLongAttr(v, "likes")));
+        }
+        if (maxLogViews <= 0) maxLogViews = 1.0;
+        if (maxLogLikes <= 0) maxLogLikes = 1.0;
+
+        // 权重归一化（α+β+γ=1）
+        double sum = alpha + beta + gamma;
+        double aN = sum > 0 ? alpha / sum : 0.0;
+        double bN = sum > 0 ? beta  / sum : 0.0;
+        double gN = sum > 0 ? gamma / sum : 0.0;
+
         List<VideoScore> results = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : videoDistanceMap.entrySet()) {
+        for (Map.Entry<String, Double> entry : videoDistanceMap.entrySet()) {
             String videoId = entry.getKey();
-            int distance = entry.getValue();
-            double prScore = pageRankScores.getOrDefault(videoId, 0.0);
-            double normalizedPR = prScore / maxPageRank;
-            double finalScore = alpha * (1.0 / distance) + beta * normalizedPR;
-
+            double distance = entry.getValue();
             Node videoNode = getNode(videoId);
-            if (videoNode != null) {
-                results.add(new VideoScore(videoNode, distance, prScore, finalScore));
-            }
+            if (videoNode == null) continue;
+
+            double prScore = pageRankScores.getOrDefault(videoId, 0.0);
+            double normalizedPR = prScore / maxPR;
+
+            double views = parseLongAttr(videoNode, "views");
+            double likes = parseLongAttr(videoNode, "likes");
+            double popularity = 0.6 * (Math.log1p(views) / maxLogViews)
+                              + 0.4 * (Math.log1p(likes) / maxLogLikes);
+
+            double distanceScore = 1.0 / Math.max(distance, 0.01);
+            double finalScore = aN * distanceScore + bN * normalizedPR + gN * popularity;
+
+            results.add(new VideoScore(videoNode, distance, prScore, popularity, finalScore));
         }
 
         results.sort((a, b) -> Double.compare(b.finalScore, a.finalScore));
         return results;
     }
 
+    private static long parseLongAttr(Node n, String key) {
+        String s = n.getAttribute(key);
+        if (s == null || s.isEmpty()) return 0L;
+        try { return Long.parseLong(s); } catch (NumberFormatException e) { return 0L; }
+    }
+
     /**
-     * BFS遍历，返回视频节点ID到最短路径距离的映射
+     * Dijkstra 加权最短路径：从用户节点出发，按 edge weight 累加距离，返回所有可达视频节点。
+     * 边权重含义：watch=0.1（强信号），similar=0.5，social=1.0（弱信号）—— 越小越近。
      */
-    private Map<String, Integer> bfsVideoDistance(String userNodeId, int maxDepth) {
-        Map<String, Integer> videoDistances = new LinkedHashMap<>();
+    private Map<String, Double> dijkstraVideoDistance(String userNodeId, double maxDistance) {
+        Map<String, Double> videoDistances = new LinkedHashMap<>();
         Node startNode = getNode(userNodeId);
         if (startNode == null || !startNode.isUser()) {
             return videoDistances;
         }
 
-        Queue<BFSState> queue = new ArrayDeque<>();
-        Set<String> visited = new HashSet<>();
+        Map<String, Double> dist = new HashMap<>();
+        PriorityQueue<DijkstraEntry> pq = new PriorityQueue<>((a, b) -> Double.compare(a.distance, b.distance));
 
-        queue.offer(new BFSState(userNodeId, 0));
-        visited.add(userNodeId);
+        dist.put(userNodeId, 0.0);
+        pq.offer(new DijkstraEntry(userNodeId, 0.0));
 
-        while (!queue.isEmpty()) {
-            BFSState current = queue.poll();
+        while (!pq.isEmpty()) {
+            DijkstraEntry current = pq.poll();
+            if (current.distance > dist.getOrDefault(current.nodeId, Double.POSITIVE_INFINITY)) continue;
+            if (current.distance > maxDistance) continue;
 
-            if (current.depth >= maxDepth) continue;
+            Node currentNode = getNode(current.nodeId);
+            if (currentNode != null && currentNode.isVideo() && !current.nodeId.equals(userNodeId)) {
+                videoDistances.putIfAbsent(current.nodeId, current.distance);
+            }
 
-            for (Node neighbor : getUndirectedNeighbors(current.nodeId)) {
-                String neighborId = neighbor.getNodeId();
-                if (!visited.add(neighborId)) continue;
-
-                int nextDepth = current.depth + 1;
-                queue.offer(new BFSState(neighborId, nextDepth));
-
-                if (neighbor.isVideo()) {
-                    videoDistances.putIfAbsent(neighborId, nextDepth);
-                }
+            for (Edge edge : getOutEdges(current.nodeId)) {
+                relax(edge.getTarget().getNodeId(), current.distance + edge.getWeight(), dist, pq, maxDistance);
+            }
+            for (Edge edge : getInEdges(current.nodeId)) {
+                relax(edge.getSource().getNodeId(), current.distance + edge.getWeight(), dist, pq, maxDistance);
             }
         }
         return videoDistances;
+    }
+
+    private void relax(String neighborId, double newDist, Map<String, Double> dist,
+                       PriorityQueue<DijkstraEntry> pq, double maxDistance) {
+        if (newDist > maxDistance) return;
+        if (newDist < dist.getOrDefault(neighborId, Double.POSITIVE_INFINITY)) {
+            dist.put(neighborId, newDist);
+            pq.offer(new DijkstraEntry(neighborId, newDist));
+        }
+    }
+
+    private static class DijkstraEntry {
+        final String nodeId;
+        final double distance;
+        DijkstraEntry(String nodeId, double distance) {
+            this.nodeId = nodeId;
+            this.distance = distance;
+        }
     }
 
     /**
@@ -516,14 +572,16 @@ public class Graph {
      */
     public static class VideoScore {
         public final Node video;
-        public final int distance;
+        public final double distance;          // Dijkstra 加权距离
         public final double pageRankScore;
+        public final double popularityScore;   // log(views)+log(likes) 归一化
         public final double finalScore;
 
-        VideoScore(Node video, int distance, double pageRankScore, double finalScore) {
+        VideoScore(Node video, double distance, double pageRankScore, double popularityScore, double finalScore) {
             this.video = video;
             this.distance = distance;
             this.pageRankScore = pageRankScore;
+            this.popularityScore = popularityScore;
             this.finalScore = finalScore;
         }
     }
