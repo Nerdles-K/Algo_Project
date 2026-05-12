@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import client from '../api/client'
 
 const prMode = ref('full')
@@ -7,10 +7,16 @@ const top = ref(15)
 const loading = ref(false)
 const error = ref('')
 const result = ref(null)
+const failedIds = ref({})
+
+const visibleVideos = computed(() =>
+  result.value?.videos.filter(v => !failedIds.value[v.id]) ?? []
+)
 
 async function load() {
   loading.value = true
   error.value = ''
+  failedIds.value = {}
   try {
     const res = await client.get('/api/pagerank', { params: { prMode: prMode.value, top: top.value } })
     result.value = res.data
@@ -24,12 +30,16 @@ async function load() {
 onMounted(load)
 
 function maxScore() {
-  if (!result.value?.videos?.length) return 1
-  return result.value.videos[0].pageRankScore
+  if (!visibleVideos.value.length) return 1
+  return visibleVideos.value[0].pageRankScore
 }
 
 function barWidth(score) {
   return Math.max(4, Math.round((score / maxScore()) * 200))
+}
+
+function onThumbError(id) {
+  failedIds.value = { ...failedIds.value, [id]: true }
 }
 </script>
 
@@ -67,6 +77,7 @@ function barWidth(score) {
         <thead>
           <tr>
             <th>#</th>
+            <th>Thumbnail</th>
             <th>Title</th>
             <th>Channel</th>
             <th>Views</th>
@@ -74,8 +85,16 @@ function barWidth(score) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(v, i) in result.videos" :key="v.id">
+          <tr v-for="(v, i) in visibleVideos" :key="v.id">
             <td style="color:var(--text-dim)">{{ i + 1 }}</td>
+            <td>
+              <img
+                class="table-thumb"
+                :src="`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`"
+                :alt="v.title"
+                @error="onThumbError(v.id)"
+              />
+            </td>
             <td>
               <a :href="`https://www.youtube.com/watch?v=${v.videoId}`" target="_blank" rel="noopener noreferrer">
                 {{ v.title }}

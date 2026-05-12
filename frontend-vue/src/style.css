@@ -127,12 +127,21 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; display: bl
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 16px;
+  padding: 0;
   display: block;
   color: inherit;
+  overflow: hidden;
   transition: border-color 0.2s, transform 0.15s;
 }
 .video-card:hover { border-color: var(--accent2); transform: translateY(-2px); text-decoration: none; }
+.video-card .thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  display: block;
+  background: var(--surface2);
+}
+.video-card .card-body { padding: 12px 14px 14px; }
 .video-card .title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; line-height: 1.4; }
 .video-card .channel { font-size: 12px; color: var(--accent2); margin-bottom: 8px; }
 .video-card .meta { font-size: 12px; color: var(--text-dim); display: flex; gap: 12px; }
@@ -145,6 +154,14 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; display: bl
   padding: 1px 6px;
   border-radius: 4px;
   margin-top: 8px;
+}
+.table-thumb {
+  width: 120px;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+  background: var(--surface2);
 }
 
 /* Summary bar */

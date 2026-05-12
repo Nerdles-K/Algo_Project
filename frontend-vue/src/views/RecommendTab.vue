@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import client from '../api/client'
 
 const alpha = ref(0.6)
@@ -9,10 +9,16 @@ const top = ref(20)
 const loading = ref(false)
 const error = ref('')
 const result = ref(null)
+const failedIds = ref({})
+
+const visibleRecs = computed(() =>
+  result.value?.recommendations.filter(v => !failedIds.value[v.id]) ?? []
+)
 
 async function load() {
   loading.value = true
   error.value = ''
+  failedIds.value = {}
   try {
     const res = await client.get('/api/recommend', {
       params: { alpha: alpha.value, beta: beta.value, prMode: prMode.value, top: top.value },
@@ -28,6 +34,10 @@ async function load() {
 function updateAlpha(v) {
   alpha.value = parseFloat(v)
   beta.value = parseFloat((1 - alpha.value).toFixed(2))
+}
+
+function onThumbError(id) {
+  failedIds.value = { ...failedIds.value, [id]: true }
 }
 
 onMounted(load)
@@ -64,7 +74,7 @@ onMounted(load)
       <span>Graph node: <b>{{ result.graphNodeId }}</b></span>
       <span>α=<b>{{ result.alpha }}</b> β=<b>{{ result.beta }}</b></span>
       <span>Mode: <b>{{ result.prMode }}</b></span>
-      <span>Results: <b>{{ result.count }}</b></span>
+      <span>Showing: <b>{{ visibleRecs.length }}</b> / {{ result.count }}</span>
     </div>
 
     <div v-if="error" class="error-msg" style="margin-bottom:16px">{{ error }}</div>
@@ -72,21 +82,29 @@ onMounted(load)
 
     <div v-if="result && !loading" class="cards-grid">
       <a
-        v-for="v in result.recommendations"
+        v-for="v in visibleRecs"
         :key="v.id"
         class="video-card"
         :href="`https://www.youtube.com/watch?v=${v.videoId}`"
         target="_blank"
         rel="noopener noreferrer"
       >
-        <div class="title">{{ v.title }}</div>
-        <div class="channel">{{ v.channel }}</div>
-        <div class="meta">
-          <span>👁 {{ Number(v.views).toLocaleString() }}</span>
-          <span>👍 {{ Number(v.likes).toLocaleString() }}</span>
+        <img
+          class="thumb"
+          :src="`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`"
+          :alt="v.title"
+          @error="onThumbError(v.id)"
+        />
+        <div class="card-body">
+          <div class="title">{{ v.title }}</div>
+          <div class="channel">{{ v.channel }}</div>
+          <div class="meta">
+            <span>👁 {{ Number(v.views).toLocaleString() }}</span>
+            <span>👍 {{ Number(v.likes).toLocaleString() }}</span>
+          </div>
+          <div class="dist-badge">dist: {{ v.distance }}</div>
+          <div class="score">score: {{ v.finalScore.toFixed(4) }}</div>
         </div>
-        <div class="dist-badge">dist: {{ v.distance }}</div>
-        <div class="score">score: {{ v.finalScore.toFixed(4) }}</div>
       </a>
     </div>
   </div>

@@ -50,9 +50,9 @@
 | Echo Chamber (LCC) tab | Member C | Risk cards + top-20 table | ✅ 2026-05-11 |
 | PageRank tab | Member C | Top-15 video table | ✅ 2026-05-11 |
 | End-to-end smoke test (register → login → all 5 tabs) | All | Manual checklist passes | ⏳ |
-| Demo data: pre-seed 3 demo accounts mapped to interesting graph nodes | Member A | Login as `demo1/demo2/demo3` shows distinct recs | ⏳ |
-| `dev.sh` orchestration script | Member A | One command starts backend + frontend | ⏳ |
-| Bug fixes + UI polish | All | — | ⏳ |
+| Demo data: pre-seed 3 demo accounts mapped to interesting graph nodes | Member A | Login as `demo1/demo2/demo3` shows distinct recs | ✅ 2026-05-12 (DemoDataService seeds on boot; password: demo123) |
+| `dev.sh` orchestration script | Member A | One command starts backend + frontend | ✅ 2026-05-12 |
+| Bug fixes + UI polish | All | — | ✅ 2026-05-12 (thumbnails added to Recommend/PageRank; dead videos filtered via img @error) |
 
 ### Week 12 (6/1) — Final Presentation
 
