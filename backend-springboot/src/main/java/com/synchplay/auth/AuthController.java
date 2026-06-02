@@ -64,13 +64,13 @@ public class AuthController {
     @GetMapping("/me")
     public AuthResponse.UserView me(@AuthenticationPrincipal AppUser user) {
         if (user == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        return new AuthResponse.UserView(user.getId(), user.getUsername(), user.getEmail(), user.getGraphNodeId());
+        return new AuthResponse.UserView(user.getId(), user.getUsername(), user.getEmail(), user.getGraphNodeId(), user.getRole());
     }
 
     private AuthResponse toResponse(AppUser user) {
         return new AuthResponse(
             jwt.issueToken(user),
-            new AuthResponse.UserView(user.getId(), user.getUsername(), user.getEmail(), user.getGraphNodeId()));
+            new AuthResponse.UserView(user.getId(), user.getUsername(), user.getEmail(), user.getGraphNodeId(), user.getRole()));
     }
 
     /**

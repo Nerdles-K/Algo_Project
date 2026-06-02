@@ -18,6 +18,7 @@ const router = createRouter({
         { path: 'overview', component: () => import('../views/OverviewTab.vue') },
         { path: 'lcc', component: () => import('../views/LccTab.vue') },
         { path: 'pagerank', component: () => import('../views/PageRankTab.vue') },
+        { path: 'watch-history', component: () => import('../views/WatchHistoryTab.vue') },
       ],
     },
   ],

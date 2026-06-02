@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
  * Controllers should obtain the Graph via {@link #getGraph()} and call its methods directly.
  */
 @Service
-@Order(2)
 public class GraphService {
 
     private static final Logger log = LoggerFactory.getLogger(GraphService.class);
@@ -33,6 +32,7 @@ public class GraphService {
     }
 
     @EventListener(ApplicationReadyEvent.class)
+    @Order(2)
     public void hydrate() {
         log.info("Hydrating in-memory Graph from Postgres ...");
         long t0 = System.currentTimeMillis();

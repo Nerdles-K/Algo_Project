@@ -132,6 +132,7 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; display: bl
   color: inherit;
   overflow: hidden;
   transition: border-color 0.2s, transform 0.15s;
+  cursor: pointer;
 }
 .video-card:hover { border-color: var(--accent2); transform: translateY(-2px); text-decoration: none; }
 .video-card .thumb {

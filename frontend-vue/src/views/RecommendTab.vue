@@ -57,6 +57,16 @@ function onThumbLoad(e, id) {
   if (e.target.naturalWidth <= 120) markFailed(id)
 }
 
+function openVideo(v) {
+  client.post('/api/watch-history', {
+    videoNodeId: v.id,
+    videoId: v.videoId,
+    title: v.title,
+    channel: v.channel,
+  }).catch(() => {}) // fire-and-forget
+  window.open(`https://www.youtube.com/watch?v=${v.videoId}`, '_blank', 'noopener')
+}
+
 onMounted(load)
 </script>
 
@@ -103,13 +113,11 @@ onMounted(load)
     <div v-if="loading" class="loading">Loading recommendations…</div>
 
     <div v-if="result && !loading" class="cards-grid">
-      <a
+      <div
         v-for="v in visibleRecs"
         :key="v.id"
         class="video-card"
-        :href="`https://www.youtube.com/watch?v=${v.videoId}`"
-        target="_blank"
-        rel="noopener noreferrer"
+        @click="openVideo(v)"
       >
         <img
           class="thumb"
@@ -131,7 +139,7 @@ onMounted(load)
           </div>
           <div class="score">score: {{ v.finalScore.toFixed(4) }}</div>
         </div>
-      </a>
+      </div>
     </div>
   </div>
 </template>

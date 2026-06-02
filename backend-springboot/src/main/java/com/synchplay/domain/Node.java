@@ -65,6 +65,10 @@ public class Node {
         }
     }
 
+    public void removeNeighbor(Node neighbor) {
+        neighbors.remove(neighbor);
+    }
+
     /**
      * 获取节点的度（邻居数量）
      */

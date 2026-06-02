@@ -18,15 +18,14 @@ import java.util.List;
  * Runs after GraphService (Order 3) so the user-node list is already populated.
  */
 @Component
-@Order(3)
 public class DemoDataService {
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataService.class);
 
     private static final String[][] DEMO_USERS = {
-        {"demo1", "demo1@synchplay.dev"},
-        {"demo2", "demo2@synchplay.dev"},
-        {"demo3", "demo3@synchplay.dev"},
+        {"demo1", "demo1@synchplay.dev", "ADMIN"},
+        {"demo2", "demo2@synchplay.dev", "USER"},
+        {"demo3", "demo3@synchplay.dev", "USER"},
     };
     private static final String DEMO_PASSWORD = "demo123";
 
@@ -41,6 +40,7 @@ public class DemoDataService {
     }
 
     @EventListener(ApplicationReadyEvent.class)
+    @Order(3)
     public void seedDemoUsers() {
         List<Node> userNodes = graphService.getGraph().getUserNodes();
         if (userNodes.isEmpty()) {
@@ -52,14 +52,22 @@ public class DemoDataService {
         for (String[] entry : DEMO_USERS) {
             String username = entry[0];
             String email    = entry[1];
+            String role     = entry[2];
             if (repo.existsByUsername(username)) {
-                log.debug("Demo user '{}' already exists, skipping", username);
+                // Ensure role is correct even for existing demo accounts
+                repo.findByUsername(username).ifPresent(u -> {
+                    if (!role.equals(u.getRole())) {
+                        u.setRole(role);
+                        repo.save(u);
+                        log.info("Updated demo user '{}' role to {}", username, role);
+                    }
+                });
                 continue;
             }
             int idx = (int) (repo.count() % userNodes.size());
             String graphNodeId = userNodes.get(idx).getNodeId();
-            repo.save(new AppUser(username, email, encoder.encode(DEMO_PASSWORD), graphNodeId));
-            log.info("Seeded demo user '{}' → graph node {}", username, graphNodeId);
+            repo.save(new AppUser(username, email, encoder.encode(DEMO_PASSWORD), graphNodeId, role));
+            log.info("Seeded demo user '{}' (role={}) → graph node {}", username, role, graphNodeId);
         }
     }
 }

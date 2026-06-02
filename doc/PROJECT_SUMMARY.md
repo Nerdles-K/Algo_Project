@@ -47,9 +47,10 @@ Algo_Project/
 │           ├── StatsController.java           # GET /api/stats
 │           ├── UsersController.java           # GET /api/users
 │           ├── RecommendController.java       # GET /api/recommend
-│           ├── FriendsController.java         # GET /api/friends
-│           ├── LccController.java             # GET /api/lcc
-│           └── PageRankController.java        # GET /api/pagerank
+│           ├── FriendsController.java         # GET/POST/DELETE /api/friends
+│           ├── LccController.java             # GET /api/lcc (个人) + /api/lcc/admin (全局)
+│           ├── PageRankController.java        # GET /api/pagerank
+│           └── WatchHistoryController.java    # POST/GET /api/watch-history
 │
 ├── frontend-vue/                     ← v2 前端（Vue 3 + Vite + Pinia）
 │   ├── vite.config.js
@@ -384,7 +385,7 @@ Step 6: 降序 Top N
 
 **目的**：量化用户社交圈的"封闭程度"，LCC 越高说明朋友们互相都认识，信息茧房风险越大。
 
-**方法**：`Graph.computeAllUserLCC()`（一次计算全部 100 个用户，按 LCC 降序返回）
+**方法**：`Graph.computeLocalClusteringCoefficient(userNodeId)`（用户仅看到自己的 LCC；管理员可通过 `/api/lcc/admin` 查看全部用户）
 
 **公式：**
 ```
@@ -451,6 +452,8 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 
 **时间复杂度**：O(user_out_degree × avg_video_in_degree)，500 节点规模即时完成。
 
+**好友关系持久化**：`POST /api/friends` 创建 social 边（同时写入 DB 和内存图），`DELETE /api/friends` 删除边。前端好友页同时显示已关注好友和推荐好友。
+
 ---
 
 ## API 端点总览（v2）
@@ -471,9 +474,14 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 | `/api/stats` | GET | — | 图统计（节点数、边数、密度等） |
 | `/api/users` | GET | — | 全部 100 个用户列表 |
 | `/api/recommend` | GET | `alpha`(0.5), `beta`(0.3), `gamma`(0.2), `prMode`(full\|watch), `top`(20) | Dijkstra + PageRank + popularity 综合打分；当前登录用户自动作为目标 |
-| `/api/friends` | GET | `top`(10) | 好友推荐（协同过滤） |
-| `/api/lcc` | GET | — | 全部用户 LCC + 风险等级 |
+| `/api/friends` | GET | `top`(10) | 好友推荐 + 已有好友 |
+| `/api/friends` | POST | body: `{targetNodeId}` | 关注好友（创建 social 边） |
+| `/api/friends` | DELETE | body: `{targetNodeId}` | 取消关注（删除 social 边） |
+| `/api/lcc` | GET | — | 当前用户个人 LCC + 风险等级 |
+| `/api/lcc/admin` | GET | — | [ADMIN] 全部用户 LCC |
 | `/api/pagerank` | GET | `prMode`(full\|watch), `top`(15) | 视频 PageRank 热度排行 |
+| `/api/watch-history` | GET | `limit`(50) | 当前用户观看历史 |
+| `/api/watch-history` | POST | body: `{videoNodeId, videoId, title, channel}` | 记录一次观看 |
 
 ---
 
@@ -483,11 +491,12 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 |---------|------|------|
 | 登录页 | `/login` | username + password；登录后跳转 `/app/recommend` |
 | 注册页 | `/register` | username + email + password（含确认）；注册后自动登录 |
-| 视频推荐 | `/app/recommend` | α/β 滑块调权重，prMode 切换，视频卡片含 YouTube 缩略图；死链（缩略图宽度≤120px）自动过滤 |
+| 视频推荐 | `/app/recommend` | α/β/γ 滑块调权重，prMode 切换，视频卡片含 YouTube 缩略图；点击自动记录观看历史 |
 | 图统计 | `/app/overview` | 节点数、边数、平均度等 9 张统计卡片 |
-| 好友推荐 | `/app/friends` | 当前用户的推荐好友列表（按共同观看数） |
-| 茧房检测 | `/app/lcc` | 全部用户 LCC 分数 + 高/中/低风险色码表格 |
-| PageRank | `/app/pagerank` | Top N 视频热度榜，含缩略图、频道、播放量、比例条形图 |
+| 好友 | `/app/friends` | 已有好友列表（Unfollow 按钮）+ 推荐好友列表（Follow 按钮） |
+| 茧房检测 | `/app/lcc` | 个人茧房等级卡片 + 可视化条形图；管理员可加载全局用户表格 |
+| PageRank | `/app/pagerank` | Top N 视频热度榜，含缩略图、频道、播放量、比例条形图；点击自动记录观看历史 |
+| 观看历史 | `/app/watch-history` | 当前用户已观看视频列表（缩略图、标题、频道、时间） |
 
 **安全机制**：
 - 所有 `/app/*` 路由有导航守卫，未登录自动跳转 `/login`

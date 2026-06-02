@@ -232,9 +232,14 @@ GET /api/auth/me
 | `/api/stats` | GET | ✅ | Graph + DB stats |
 | `/api/users` | GET | ✅ | All graph users (for friend lookup) |
 | `/api/recommend` | GET | ✅ | **No `userId` param** — uses JWT current user; supports `alpha`, `beta`, `prMode` |
-| `/api/friends` | GET | ✅ | Same: current user |
-| `/api/lcc` | GET | ✅ | All 100 users LCC scores |
+| `/api/friends` | GET | ✅ | Existing friends + recommendations for current user |
+| `/api/friends` | POST | ✅ | Create a social edge (body: `{targetNodeId}`) |
+| `/api/friends` | DELETE | ✅ | Remove a social edge (body: `{targetNodeId}`) |
+| `/api/lcc` | GET | ✅ | Current user's personal LCC only |
+| `/api/lcc/admin` | GET | 🔒 ADMIN | All users' LCC (admin only) |
 | `/api/pagerank` | GET | ✅ | top= param |
+| `/api/watch-history` | GET | ✅ | Current user's watch history |
+| `/api/watch-history` | POST | ✅ | Record a watch event (body: `{videoNodeId, videoId, title, channel}`) |
 
 ### 4.6 Frontend Layer (Vue 3 SPA)
 
@@ -244,10 +249,11 @@ GET /api/auth/me
 | `/register` | `RegisterPage.vue` | Public |
 | `/app` | `AppShell.vue` | Guarded; wraps top nav + `<router-view>` |
 | `/app/recommend` | `RecommendTab.vue` | Default after login; sliders + prMode toggle + clickable cards |
-| `/app/friends` | `FriendsTab.vue` | List friend suggestions |
+| `/app/friends` | `FriendsTab.vue` | Existing friends + Follow/Unfollow buttons + recommendations |
 | `/app/overview` | `OverviewTab.vue` | Stat cards |
-| `/app/lcc` | `LccTab.vue` | Risk cards + table |
-| `/app/pagerank` | `PageRankTab.vue` | Leaderboard |
+| `/app/lcc` | `LccTab.vue` | Personal echo chamber card + admin all-users view |
+| `/app/pagerank` | `PageRankTab.vue` | Clickable leaderboard (records watch history) |
+| `/app/watch-history` | `WatchHistoryTab.vue` | Table of watched videos |
 
 **State management (Pinia):**
 - `useAuthStore()` — `token`, `currentUser`, `login()`, `register()`, `logout()`, persisted to localStorage

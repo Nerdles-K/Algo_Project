@@ -34,7 +34,8 @@ public class JwtService {
             .subject(user.getUsername())
             .claims(Map.of(
                 "uid",  user.getId(),
-                "gnid", user.getGraphNodeId()))
+                "gnid", user.getGraphNodeId(),
+                "role", user.getRole()))
             .issuedAt(Date.from(now))
             .expiration(Date.from(now.plusSeconds(expirySeconds)))
             .signWith(key)

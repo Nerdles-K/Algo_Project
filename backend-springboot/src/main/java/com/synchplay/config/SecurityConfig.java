@@ -24,12 +24,17 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
-    private final String allowedOrigin;
+    private final List<String> allowedOrigins;
 
     public SecurityConfig(JwtAuthenticationFilter jwtFilter,
                           @Value("${synchplay.cors.allowed-origin}") String allowedOrigin) {
         this.jwtFilter = jwtFilter;
-        this.allowedOrigin = allowedOrigin;
+        // Accept the configured origin plus common Vite fallback port (5174 when 5173 is busy)
+        this.allowedOrigins = List.of(
+            allowedOrigin,
+            allowedOrigin.replace(":5173", ":5174"),
+            allowedOrigin.replace(":5174", ":5173")
+        ).stream().distinct().toList();
     }
 
     @Bean
@@ -41,6 +46,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(a -> a
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/health").permitAll()
+                .requestMatchers("/api/lcc/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll())
             .exceptionHandling(eh -> eh.authenticationEntryPoint(unauthorizedEntryPoint()))
@@ -72,7 +78,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of(allowedOrigin));
+        cfg.setAllowedOrigins(allowedOrigins);
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         cfg.setAllowCredentials(false);

@@ -33,6 +33,8 @@ Build a production-style video recommendation platform that leverages social gra
 | FR-A.4 | **Current user**: `GET /api/auth/me` returns the authenticated user profile | Medium | ✅ |
 | FR-A.5 | **Logout**: Frontend clears localStorage token; backend stateless (no server-side action) | Low | ✅ |
 | FR-A.6 | **Link app user → graph user**: On registration, deterministically map new account to one of the 100 dataset user nodes (round-robin or by hash) so recommendations work immediately | Medium | ✅ (round-robin by `repo.count() % 100`, sorted by nodeId for stability) |
+| FR-A.7 | **Watch history tracking**: `POST /api/watch-history` records a watch event; `GET /api/watch-history` returns the authenticated user's watch history; stored in `watch_history` table | High | ✅ (2026-05-18) |
+| FR-A.8 | **User roles**: `app_users.role` column (USER/ADMIN); demo1 is ADMIN; role embedded in JWT and used for authorization | Medium | ✅ (2026-05-18) |
 
 ### FR-B: Database (NEW / MIGRATED)
 
@@ -57,6 +59,7 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-C.5 | `GET /api/recommend?alpha=&beta=&prMode=` — uses **current authenticated user** as target (no need to pass userId) | High | ✅ |
 | FR-C.6 | LCC computation + Echo Chamber endpoint | Medium | ✅ |
 | FR-C.7 | Friend Recommendation (collaborative filtering) | Medium | ✅ |
+| FR-C.8 | **Friend edge creation/deletion**: `POST /api/friends` creates a social edge (persisted to DB + in-memory graph); `DELETE /api/friends` removes it | Medium | ✅ (2026-05-18) |
 
 ### FR-D: Frontend (REWRITE)
 
@@ -71,6 +74,9 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-D.7 | **All 5 v1 tabs reimplemented as Vue components** (Recommend, Friends, Overview, LCC, PageRank), preserving feature parity (sliders, prMode toggle, clickable video cards, YouTube links) | High | ✅ |
 | FR-D.8 | **Top nav** shows logged-in username + logout button | Medium | ✅ |
 | FR-D.9 | **Dark theme** preserved from v1 | Low | ✅ |
+| FR-D.10 | **Watch History tab**: `/app/watch-history` shows the authenticated user's watch history in a table (thumbnail, title, channel, timestamp) | Medium | ✅ (2026-05-18) |
+| FR-D.11 | **LCC personal view**: Each user sees only their own echo chamber level; admin users can load the all-users table via `/api/lcc/admin` | Medium | ✅ (2026-05-18) |
+| FR-D.12 | **Friends tab with Follow/Unfollow**: Existing friends shown with Unfollow button; recommended friends with Follow button; API calls persist edges | Medium | ✅ (2026-05-18) |
 
 ### FR-E: System Operations
 
@@ -80,7 +86,7 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-E.2 | Spring profiles: `dev` (verbose logs), `prod` (info+) | Medium | ⏳ (W11 polish) |
 | FR-E.3 | `application.yml` with externalized config (DB URL, JWT secret) | High | ✅ (all values overridable via env vars) |
 | FR-E.4 | CORS allow `http://localhost:5173` (Vite dev) and configurable origin | High | ✅ (`synchplay.cors.allowed-origin`) |
-| FR-E.5 | One-command dev startup: `bash dev.sh` (parallel `mvn spring-boot:run` + `npm run dev`) | Medium | ⏳ |
+| FR-E.5 | One-command dev startup: `bash dev.sh` (parallel `mvn spring-boot:run` + `npm run dev`) | Medium | ✅ |
 
 ---
 
@@ -106,7 +112,6 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | Multi-tenancy / org accounts | Single-tenant demo |
 | Production deployment (HTTPS, domain, prod DB) | Localhost demo only |
 | Experiment report / Precision@K evaluation | Dropped to free time for the rewrite (see PROGRESS.md) |
-| Dijkstra algorithm | Deferred (was Low priority in v1) |
 
 ---
 

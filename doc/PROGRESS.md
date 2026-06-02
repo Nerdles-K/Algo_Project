@@ -65,6 +65,19 @@
 | README.md at repo root explaining how to run | Member A | New cloner can `./dev.sh` | ✅ 2026-05-12 |
 | Final presentation | All | — | ⏳ |
 
+### Week 10–11 — Post-v2 Enhancements (2026-05-18)
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| Watch history tracking | New `watch_history` table, POST/GET `/api/watch-history`, WatchHistoryTab.vue | ✅ 2026-05-18 |
+| LCC visibility control | Personal LCC card (each user sees only own score); admin-only `/api/lcc/admin` for all users; demo1 is ADMIN | ✅ 2026-05-18 |
+| Friend add/delete | POST/DELETE `/api/friends` with DB persistence + in-memory graph update; Follow/Unfollow buttons in FriendsTab | ✅ 2026-05-18 |
+| User roles | `app_users.role` column (USER/ADMIN); role in JWT claims; SecurityConfig `.hasRole("ADMIN")` for admin endpoints | ✅ 2026-05-18 |
+| CORS dual-port fix | SecurityConfig accepts both :5173 and :5174 (Vite auto-fallback) | ✅ 2026-05-17 |
+| LoginPage bug fix | Switched to raw `axios` (bypass 401 interceptor); demo quick-fill buttons | ✅ 2026-05-17 |
+| `@Order` method-level fix | Moved `@Order` from class to `@EventListener` method on GraphService + DemoDataService | ✅ 2026-05-17 |
+| SynchPlay project skill | `.claude/skills/synchplay/SKILL.md` with project knowledge + common gotchas | ✅ 2026-05-17 |
+
 ---
 
 ## 3. Member Assignment Matrix (Phase 4)
@@ -100,6 +113,7 @@
 | All v1 endpoints ported to v2 | W10 (May 24) | 2026-05-11 | ✅ Achieved 13 days early |
 | Frontend skeleton runs (Vue + login) | W10 (May 24) | 2026-05-11 | ✅ Achieved 13 days early |
 | All 5 tabs working in v2 | W11 (May 31) | 2026-05-11 | ✅ Achieved 20 days early |
+| Watch history, LCC per-user, friend edges | W11+ | 2026-05-18 | ✅ |
 | Final presentation | W12 (Jun 1) | — | ⏳ |
 
 ---

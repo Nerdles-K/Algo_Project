@@ -45,6 +45,16 @@ function markFailed(id) {
 function onThumbLoad(e, id) {
   if (e.target.naturalWidth <= 120) markFailed(id)
 }
+
+function openVideo(v) {
+  client.post('/api/watch-history', {
+    videoNodeId: v.id,
+    videoId: v.videoId,
+    title: v.title,
+    channel: v.channel,
+  }).catch(() => {})
+  window.open(`https://www.youtube.com/watch?v=${v.videoId}`, '_blank', 'noopener')
+}
 </script>
 
 <template>
@@ -101,7 +111,7 @@ function onThumbLoad(e, id) {
               />
             </td>
             <td>
-              <a :href="`https://www.youtube.com/watch?v=${v.videoId}`" target="_blank" rel="noopener noreferrer">
+              <a class="video-link" @click.prevent="openVideo(v)">
                 {{ v.title }}
               </a>
             </td>

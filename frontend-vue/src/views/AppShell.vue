@@ -17,6 +17,7 @@ const tabs = [
   { path: '/app/overview', label: 'Overview' },
   { path: '/app/lcc', label: 'Echo Chamber' },
   { path: '/app/pagerank', label: 'PageRank' },
+  { path: '/app/watch-history', label: 'History' },
 ]
 </script>
 

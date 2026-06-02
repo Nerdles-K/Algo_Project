@@ -95,6 +95,28 @@ public class Graph {
         edge.getSource().addNeighbor(edge.getTarget());
     }
 
+    /** Find a social edge between two nodes (direction matters: src→dst). */
+    public Edge findEdge(Node src, Node dst, String edgeType) {
+        for (Edge e : getOutEdges(src.getNodeId())) {
+            if (e.getTarget().getNodeId().equals(dst.getNodeId()) && e.getEdgeType().equals(edgeType)) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    public void removeEdge(Edge edge) {
+        edges.remove(edge);
+
+        List<Edge> outList = adjacencyList.get(edge.getSource().getNodeId());
+        if (outList != null) outList.remove(edge);
+
+        List<Edge> inList = reverseAdjacencyList.get(edge.getTarget().getNodeId());
+        if (inList != null) inList.remove(edge);
+
+        edge.getSource().removeNeighbor(edge.getTarget());
+    }
+
     /**
      * 获取节点的出边列表
      */
