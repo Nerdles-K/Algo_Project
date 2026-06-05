@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SynchPlay — Graph-Powered Video Recommendations</title>
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#121826; --panel-2:#0e1420; --border:#1f2a3d;
+    --text:#e6edf6; --dim:#8aa0bd; --accent:#5b8cff; --accent-2:#7c5bff;
+    --green:#3fd68b; --amber:#ffcc66; --red:#ff6b6b; --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 80% -10%, #16213a 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+  }
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:clamp(32px,5vw,72px) clamp(40px,7vw,110px);
+    animation:fade .45s ease;
+  }
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  h1{font-size:clamp(34px,5vw,62px);line-height:1.05;letter-spacing:-.02em;font-weight:800}
+  h2{font-size:clamp(24px,3.4vw,40px);font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+  h3{font-size:clamp(16px,1.9vw,22px);font-weight:600;color:var(--text)}
+  .kicker{font:600 13px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:18px}
+  .sub{color:var(--dim);font-size:clamp(15px,1.8vw,21px);margin-top:8px}
+  p{color:var(--text);font-size:clamp(15px,1.7vw,20px);line-height:1.55}
+  ul{list-style:none;margin-top:14px}
+  li{position:relative;padding-left:26px;margin:10px 0;font-size:clamp(15px,1.7vw,20px);line-height:1.5;color:var(--text)}
+  li::before{content:"";position:absolute;left:2px;top:.62em;width:9px;height:9px;border-radius:2px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+  .dim{color:var(--dim)}
+  .quote{border-left:3px solid var(--accent);padding:10px 0 10px 22px;margin:20px 0;
+    font-size:clamp(16px,2vw,24px);color:var(--text);font-style:italic}
+  .grid{display:grid;gap:18px;margin-top:18px}
+  .two{grid-template-columns:1fr 1fr}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--border);
+    border-radius:14px;padding:20px 22px}
+  .card h3{margin-bottom:8px}
+  pre{background:#080c14;border:1px solid var(--border);border-radius:12px;padding:16px 18px;
+    font:500 clamp(12px,1.35vw,16px)/1.55 var(--mono);color:#cfe0ff;overflow:auto;margin-top:14px}
+  pre .c{color:var(--dim)}
+  pre .k{color:var(--accent)}
+  pre .n{color:var(--green)}
+  table{border-collapse:collapse;width:100%;margin-top:14px;font-size:clamp(13px,1.5vw,18px)}
+  th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--border)}
+  th{color:var(--accent);font-weight:600;font-size:.85em;letter-spacing:.04em;text-transform:uppercase}
+  td.dim{color:var(--dim)}
+  .badge{display:inline-block;font:600 12px/1 var(--mono);letter-spacing:.05em;padding:5px 10px;border-radius:999px;
+    border:1px solid var(--border);color:var(--accent);background:rgba(91,140,255,.08);margin:4px 6px 0 0}
+  .arch{font:500 clamp(11px,1.25vw,15px)/1.5 var(--mono);color:#bcd0f0;white-space:pre;background:#080c14;
+    border:1px solid var(--border);border-radius:12px;padding:18px 20px;overflow:auto;margin-top:10px}
+  .steps{counter-reset:s;margin-top:16px}
+  .steps li{padding-left:46px;margin:12px 0}
+  .steps li::before{counter-increment:s;content:counter(s);width:30px;height:30px;border-radius:8px;border:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font:700 14px/30px var(--mono);
+    text-align:center;top:-.1em}
+  .spacer{flex:1}
+  .formula{font-family:var(--mono);background:#080c14;border:1px solid var(--border);border-radius:12px;
+    padding:18px 20px;margin-top:16px;font-size:clamp(13px,1.5vw,18px);line-height:1.7;color:#cfe0ff}
+  .hl{color:var(--green)}.hl2{color:var(--amber)}.hl3{color:var(--accent)}
+  .footer{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;
+    padding:14px clamp(40px,7vw,110px);font:500 13px/1 var(--mono);color:var(--dim)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .dot{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+  .progress{position:absolute;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    transition:width .35s ease;z-index:10}
+  .nav{position:absolute;bottom:10px;right:clamp(40px,7vw,110px);display:flex;gap:8px;z-index:10}
+  .nav button{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:8px;
+    width:34px;height:30px;font-size:16px;cursor:pointer}
+  .nav button:hover{border-color:var(--accent)}
+  .title-wrap{margin:auto 0}
+  .pills{margin-top:26px}
+  .lead{font-size:clamp(17px,2vw,24px);color:var(--text);margin-top:10px}
+  .risk{display:inline-block;padding:3px 10px;border-radius:6px;font:600 13px/1 var(--mono)}
+  .risk.low{color:var(--green);background:rgba(63,214,139,.12)}
+  .risk.med{color:var(--amber);background:rgba(255,204,102,.12)}
+  .risk.high{color:var(--red);background:rgba(255,107,107,.12)}
+  .new{color:var(--green);font:600 12px/1 var(--mono);border:1px solid rgba(63,214,139,.4);
+    border-radius:6px;padding:3px 7px;margin-left:8px;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="progress" id="bar"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 TITLE -->
+  <section class="slide active">
+    <div class="title-wrap">
+      <div class="kicker">Algorithm Design · Final Presentation</div>
+      <h1>SynchPlay</h1>
+      <div class="lead">Graph-Powered Video Recommendations</div>
+      <div class="sub">Escaping the Echo Chamber with BFS&nbsp;+&nbsp;PageRank</div>
+      <div class="pills">
+        <span class="badge">Spring Boot 3</span>
+        <span class="badge">Vue 3</span>
+        <span class="badge">PostgreSQL</span>
+        <span class="badge">JWT Auth</span>
+        <span class="badge">6 Graph Algorithms</span>
+      </div>
+      <p class="dim" style="margin-top:26px">Team: Member A · Member B · Member C &nbsp;·&nbsp; June 2026</p>
+    </div>
+  </section>
+
+  <!-- 2 PROBLEM -->
+  <section class="slide">
+    <div class="kicker">Problem &amp; Motivation</div>
+    <h2>The Echo Chamber Problem</h2>
+    <ul>
+      <li>Recommendation feeds trap users in filter bubbles</li>
+      <li>You only see content your immediate network already likes</li>
+      <li>Result: narrowing perspectives, declining content diversity</li>
+    </ul>
+    <div class="quote">Given a social graph of users and videos, recommend content that is <b>socially close</b> (BFS) but <b>globally influential</b> (PageRank) — balancing personalization with diversity.</div>
+  </section>
+
+  <!-- 3 DATASET -->
+  <section class="slide">
+    <div class="kicker">Dataset &amp; Graph Structure</div>
+    <h2>Heterogeneous Graph — 483 nodes, 945 edges</h2>
+    <div class="grid two">
+      <div class="card">
+        <h3>Node types</h3>
+        <table>
+          <tr><th>Type</th><th>Count</th><th>Attributes</th></tr>
+          <tr><td>User</td><td>~50</td><td class="dim">userId</td></tr>
+          <tr><td>Video</td><td>~430</td><td class="dim">title, channel, views, likes, tags</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Edge types</h3>
+        <table>
+          <tr><th>Edge</th><th>Meaning</th></tr>
+          <tr><td>user → user</td><td class="dim">social follow</td></tr>
+          <tr><td>user → video</td><td class="dim">watch history</td></tr>
+          <tr><td>video → video</td><td class="dim">related video</td></tr>
+        </table>
+      </div>
+    </div>
+    <p class="dim" style="margin-top:20px">YouTube API → preprocessed CSV → imported into PostgreSQL on first boot, hydrated into an in-memory graph singleton.</p>
+  </section>
+
+  <!-- 4 BFS -->
+  <section class="slide">
+    <div class="kicker">Algorithm 1 — Candidate Recall</div>
+    <h2>BFS — Multi-hop Traversal</h2>
+    <pre><span class="c">start:</span> logged-in user's graph node
+<span class="k">hop 1</span>  direct friends        <span class="c">(user→user edges)</span>
+<span class="k">hop 2</span>  friends-of-friends
+<span class="k">hop 3</span>  their watched videos   <span class="c">(user→video edges)</span></pre>
+    <ul>
+      <li><b>Output:</b> candidate video set reachable within K hops</li>
+      <li>Provides the <b>social distance</b> signal — how many hops from you to a video</li>
+    </ul>
+    <p class="dim" style="margin-top:14px">Time complexity O(V + E) ≈ O(1,428) — sub-millisecond on our dataset.</p>
+  </section>
+
+  <!-- 5 PAGERANK -->
+  <section class="slide">
+    <div class="kicker">Algorithm 2 — Global Influence</div>
+    <h2>PageRank — Video Importance</h2>
+    <div class="formula">PR(v) = (1−d)/N + d · Σ PR(u)/out(u)<br><span class="c">d = 0.85 · converges in ~20–30 iters · sink handling</span></div>
+    <div class="grid two" style="margin-top:20px">
+      <div class="card"><h3 class="hl3">Full-graph PageRank</h3><p class="dim">All edges — social + watch + related</p></div>
+      <div class="card"><h3 class="hl3">Watch-graph PageRank</h3><p class="dim">Only user→video &amp; video→video — reflects actual viewing</p></div>
+    </div>
+    <p class="dim" style="margin-top:18px">A live <code>prMode</code> toggle lets the demo switch modes and watch the ranking shift.</p>
+  </section>
+
+  <!-- 6 COMPOSITE -->
+  <section class="slide">
+    <div class="kicker">Algorithm 3 — The Recommendation</div>
+    <h2>Composite Scoring</h2>
+    <div class="formula">finalScore(v) = <span class="hl3">α</span>·(1 / Dijkstra_dist(u,v))  <span class="c">← social closeness</span>
+              + <span class="hl">β</span>·normalizedPageRank(v)   <span class="c">← global influence</span>
+              + <span class="hl2">γ</span>·normalizedPopularity(v)  <span class="c">← views + likes</span>
+<span class="c">              α + β + γ = 1   (auto-normalized from 3 sliders)</span></div>
+    <div class="grid two" style="margin-top:18px">
+      <div class="card">
+        <h3>Weighted Dijkstra distance</h3>
+        <p class="dim">watch = 0.1 (strong) · similar = 0.5 · social = 1.0 (weak)</p>
+      </div>
+      <div class="card">
+        <h3>Log-scaled popularity</h3>
+        <p class="dim">0.6·log(1+views)/log(1+max) + 0.4·log(1+likes)/log(1+max)</p>
+      </div>
+    </div>
+    <p class="dim" style="margin-top:16px">Defaults α=0.5 β=0.3 γ=0.2. Watched videos excluded; dead/private thumbnails filtered out.</p>
+  </section>
+
+  <!-- 7 LCC + FRIENDS -->
+  <section class="slide">
+    <div class="kicker">Algorithms 4 &amp; 5 — Diversity &amp; Discovery</div>
+    <div class="grid two">
+      <div class="card">
+        <h3>LCC — Echo Chamber Detection</h3>
+        <ul>
+          <li>Local clustering coefficient per user</li>
+          <li>High clustering = tight bubble</li>
+        </ul>
+        <p style="margin-top:12px">
+          <span class="risk low">Low</span>
+          <span class="risk med">Medium</span>
+          <span class="risk high">High</span>
+        </p>
+        <p class="dim" style="margin-top:10px">Each user sees their own score; admins see the all-users table.</p>
+      </div>
+      <div class="card">
+        <h3>Friend Recommendation</h3>
+        <ul>
+          <li>Candidate users within 2 hops</li>
+          <li>Score = shared neighbours + Dijkstra + PageRank + popularity</li>
+          <li>"People you may know" ranked list</li>
+        </ul>
+        <p class="dim" style="margin-top:10px">Follow/Unfollow persists a social edge to DB <i>and</i> the in-memory graph.</p>
+      </div>
+    </div>
+    <p style="margin-top:18px"><span class="new">NEW</span> Per-friend recommendations: expand any friend to see what <i>their</i> graph position would recommend — composite scoring run from their node.</p>
+  </section>
+
+  <!-- 8 ARCHITECTURE -->
+  <section class="slide">
+    <div class="kicker">System Architecture</div>
+    <h2>Full-Stack, Stateless, Graph-in-Memory</h2>
+    <div class="arch">┌──────────────────────────────────────────────────┐
+│  Vue 3 Frontend  (Vite :5173)                     │
+│  Login · Register · 6 algorithm tabs              │
+│  Pinia auth store · axios Bearer interceptor      │
+└────────────────┬──────────────────────────────────┘
+                 │  JWT Bearer token
+┌────────────────▼──────────────────────────────────┐
+│  Spring Boot 3.3 Backend  (:8080)                 │
+│  Spring Security + JWT · 8 REST controllers       │
+│  In-memory Graph (483 nodes, 945 edges)           │
+└──────────┬──────────────────────────┬─────────────┘
+           │  JPA / Flyway            │  CSV import (boot)
+┌──────────▼──────────────────────────▼─────────────┐
+│  PostgreSQL  (synchplay DB)                       │
+│  app_users · nodes · edges · watch_history        │
+└───────────────────────────────────────────────────┘</div>
+    <p class="dim" style="margin-top:14px"><b>v2 vs v1:</b> Spring Boot + PostgreSQL + JWT replaced a raw Java HTTP server + flat CSV.</p>
+  </section>
+
+  <!-- 9 DEMO -->
+  <section class="slide">
+    <div class="kicker">Live Demo Flow · ~8 min</div>
+    <h2>From <code>./dev.sh</code> to personalized feed</h2>
+    <ol class="steps">
+      <li><code>./dev.sh</code> — start backend + frontend in one command</li>
+      <li><b>Register</b> a new account → JWT auth in action</li>
+      <li><b>Overview</b> — 9 live graph statistics</li>
+      <li><b>Recommend</b> — drag α/β/γ sliders, toggle PageRank mode</li>
+      <li><b>Friends</b> — "people you may know" + per-friend recs</li>
+      <li><b>Echo Chamber</b> — personal LCC risk; admin sees all</li>
+      <li>Login as <code>demo2</code> → different graph position, different feed</li>
+    </ol>
+  </section>
+
+  <!-- 10 RESULTS -->
+  <section class="slide">
+    <div class="kicker">Results &amp; Reflection</div>
+    <h2>What we built</h2>
+    <div class="grid two">
+      <div class="card">
+        <h3>Delivered</h3>
+        <ul>
+          <li>Full-stack app in 3 weeks: Spring Boot + Postgres + Vue 3 + JWT</li>
+          <li>6 algorithms: BFS, PageRank ×2, Composite, LCC, Friend Rec</li>
+          <li>&lt; 50 ms per request on a 483-node graph · 29 unit tests green</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Lessons learned</h3>
+        <ul>
+          <li>Heterogeneous graphs need careful BFS scoping</li>
+          <li>Watch-graph vs full-graph PageRank differ significantly</li>
+          <li>Production concerns (auth, CORS, dead-video filtering) ≈ +30% effort</li>
+        </ul>
+      </div>
+    </div>
+    <h3 style="margin-top:22px;color:var(--accent)">Future directions</h3>
+    <p class="dim">Larger dataset (10k+ nodes) · collaborative filtering · temporal decay (recent watches weighted higher)</p>
+  </section>
+
+  <!-- 11 THANKS -->
+  <section class="slide">
+    <div class="title-wrap">
+      <div class="kicker">Thank You</div>
+      <h1>Questions?</h1>
+      <div class="sub">SynchPlay — escaping the echo chamber, one hop at a time.</div>
+      <div class="pills">
+        <span class="badge">github · synchplay</span>
+        <span class="badge">doc/PROJECT_SUMMARY.md</span>
+        <span class="badge">./dev.sh</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="footer">
+  <div class="brand"><span class="dot"></span> SynchPlay</div>
+  <div><span id="cur">1</span> / <span id="tot">11</span></div>
+</div>
+<div class="nav">
+  <button onclick="go(-1)" aria-label="Previous">‹</button>
+  <button onclick="go(1)" aria-label="Next">›</button>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  document.getElementById('tot').textContent=slides.length;
+  function render(){
+    slides.forEach((s,n)=>s.classList.toggle('active',n===i));
+    document.getElementById('cur').textContent=i+1;
+    document.getElementById('bar').style.width=((i+1)/slides.length*100)+'%';
+  }
+  function go(d){i=Math.min(slides.length-1,Math.max(0,i+d));render();}
+  addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(1);}
+    if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(-1);}
+    if(e.key==='Home'){i=0;render();}
+    if(e.key==='End'){i=slides.length-1;render();}
+  });
+  render();
+</script>
+</body>
+</html>
