@@ -461,6 +461,11 @@ public class Graph {
         return rankCandidatesByCompositeScore(userNodeId, alpha, beta, 0.0, prMode);
     }
 
+    public List<VideoScore> rankCandidatesByCompositeScore(
+            String userNodeId, double alpha, double beta, double gamma, String prMode) {
+        return rankCandidatesByCompositeScore(userNodeId, alpha, beta, gamma, prMode, false);
+    }
+
     /**
      * 综合打分：α·(1/d) + β·PR + γ·popularity
      *   - distance：Dijkstra 加权最短路径（利用 edge weight）
@@ -468,14 +473,27 @@ public class Graph {
      *   - popularity：log(views) 与 log(likes) 的归一化加权和
      * 三个权重会自动归一化到和为 1。
      *
-     * @param prMode "full" 全图PageRank | "watch" watch-based PageRank
+     * @param prMode        "full" 全图PageRank | "watch" watch-based PageRank
+     * @param excludeWatched 为 true 时，剔除该用户已直接观看过的视频（user→video 的 "watch" 出边目标）。
+     *                       观看历史写入图后即生效，从而闭合"边看边个性化"的反馈回路。
      */
     public List<VideoScore> rankCandidatesByCompositeScore(
-            String userNodeId, double alpha, double beta, double gamma, String prMode) {
+            String userNodeId, double alpha, double beta, double gamma, String prMode, boolean excludeWatched) {
 
         Map<String, Double> videoDistanceMap = dijkstraVideoDistance(userNodeId, DEFAULT_MAX_DISTANCE);
         if (videoDistanceMap.isEmpty()) {
             return Collections.emptyList();
+        }
+
+        // 用户已直接观看过的视频（user→video "watch" 出边），可选剔除
+        Set<String> watchedByUser = Collections.emptySet();
+        if (excludeWatched) {
+            watchedByUser = new HashSet<>();
+            for (Edge e : getOutEdges(userNodeId)) {
+                if ("watch".equals(e.getEdgeType())) {
+                    watchedByUser.add(e.getTarget().getNodeId());
+                }
+            }
         }
 
         // PageRank
@@ -509,6 +527,7 @@ public class Graph {
             double distance = entry.getValue();
             Node videoNode = getNode(videoId);
             if (videoNode == null) continue;
+            if (watchedByUser.contains(videoId)) continue;
 
             double prScore = pageRankScores.getOrDefault(videoId, 0.0);
             double normalizedPR = prScore / maxPR;

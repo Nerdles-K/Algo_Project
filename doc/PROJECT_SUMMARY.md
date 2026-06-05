@@ -481,7 +481,7 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 | `/api/lcc/admin` | GET | — | [ADMIN] 全部用户 LCC |
 | `/api/pagerank` | GET | `prMode`(full\|watch), `top`(15) | 视频 PageRank 热度排行 |
 | `/api/watch-history` | GET | `limit`(50) | 当前用户观看历史 |
-| `/api/watch-history` | POST | body: `{videoNodeId, videoId, title, channel}` | 记录一次观看 |
+| `/api/watch-history` | POST | body: `{videoNodeId, videoId, title, channel}` | 记录一次观看；同时在图+`edges`表建 user→video `watch` 边（幂等），闭合反馈回路 |
 
 ---
 

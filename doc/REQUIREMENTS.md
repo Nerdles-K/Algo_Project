@@ -34,6 +34,7 @@ Build a production-style video recommendation platform that leverages social gra
 | FR-A.5 | **Logout**: Frontend clears localStorage token; backend stateless (no server-side action) | Low | ✅ |
 | FR-A.6 | **Link app user → graph user**: On registration, deterministically map new account to one of the 100 dataset user nodes (round-robin or by hash) so recommendations work immediately | Medium | ✅ (round-robin by `repo.count() % 100`, sorted by nodeId for stability) |
 | FR-A.7 | **Watch history tracking**: `POST /api/watch-history` records a watch event; `GET /api/watch-history` returns the authenticated user's watch history; stored in `watch_history` table | High | ✅ (2026-05-18) |
+| FR-A.9 | **Watch feedback loop**: recording a watch also creates a `user→video` `watch` edge (weight 0.1) in the `edges` table + in-memory graph (idempotent), so real viewing behaviour feeds back into Dijkstra distance and watch-based PageRank | High | ✅ (2026-06-06) |
 | FR-A.8 | **User roles**: `app_users.role` column (USER/ADMIN); demo1 is ADMIN; role embedded in JWT and used for authorization | Medium | ✅ (2026-05-18) |
 
 ### FR-B: Database (NEW / MIGRATED)
@@ -60,6 +61,7 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-C.6 | LCC computation + Echo Chamber endpoint | Medium | ✅ |
 | FR-C.7 | Friend Recommendation (collaborative filtering) | Medium | ✅ |
 | FR-C.8 | **Friend edge creation/deletion**: `POST /api/friends` creates a social edge (persisted to DB + in-memory graph); `DELETE /api/friends` removes it | Medium | ✅ (2026-05-18) |
+| FR-C.9 | **Exclude already-watched**: `/api/recommend` and `/api/friends/{id}/recommend` drop videos the target has a direct `watch` edge to, so watched videos never re-surface and the feed shifts as you watch | High | ✅ (2026-06-06) |
 
 ### FR-D: Frontend (REWRITE)
 

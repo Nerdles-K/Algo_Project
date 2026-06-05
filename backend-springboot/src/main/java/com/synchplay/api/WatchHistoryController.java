@@ -1,6 +1,10 @@
 package com.synchplay.api;
 
 import com.synchplay.auth.AppUser;
+import com.synchplay.domain.Edge;
+import com.synchplay.domain.Graph;
+import com.synchplay.domain.Node;
+import com.synchplay.service.GraphService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +17,15 @@ import java.util.Map;
 @RequestMapping("/api/watch-history")
 public class WatchHistoryController {
 
-    private final JdbcTemplate jdbc;
+    /** Weight for a user→video watch edge — strong signal (small Dijkstra distance). */
+    private static final double WATCH_EDGE_WEIGHT = 0.1;
 
-    public WatchHistoryController(JdbcTemplate jdbc) {
+    private final JdbcTemplate jdbc;
+    private final GraphService graphService;
+
+    public WatchHistoryController(JdbcTemplate jdbc, GraphService graphService) {
         this.jdbc = jdbc;
+        this.graphService = graphService;
     }
 
     @PostMapping
@@ -32,10 +41,33 @@ public class WatchHistoryController {
             "INSERT INTO watch_history (user_id, video_node_id, video_id, title, channel) VALUES (?,?,?,?,?)",
             user.getId(), videoNodeId, videoId, title, channel);
 
+        // Close the feedback loop: turn the watch into a real user→video graph edge so it
+        // (a) gets excluded from future recommendations and (b) shifts Dijkstra distance /
+        // watch-based PageRank. Mirrors how FriendsController persists a social edge.
+        boolean edgeAdded = addWatchEdge(user.getGraphNodeId(), videoNodeId);
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "ok");
         result.put("recorded", true);
+        result.put("graphEdgeAdded", edgeAdded);
         return result;
+    }
+
+    /** Adds a user→video "watch" edge to the in-memory graph + edges table if not already present.
+     *  Returns true when a new edge was created. */
+    private boolean addWatchEdge(String userNodeId, String videoNodeId) {
+        if (userNodeId == null || videoNodeId == null) return false;
+
+        Graph g = graphService.getGraph();
+        Node me = g.getNode(userNodeId);
+        Node video = g.getNode(videoNodeId);
+        if (me == null || video == null) return false;          // unknown node — log only
+        if (g.findEdge(me, video, "watch") != null) return false; // already watched — idempotent
+
+        jdbc.update("INSERT INTO edges (src, dst, edge_type, weight) VALUES (?,?,?,?)",
+            userNodeId, videoNodeId, "watch", WATCH_EDGE_WEIGHT);
+        g.addEdge(new Edge(me, video, "watch", WATCH_EDGE_WEIGHT));
+        return true;
     }
 
     @GetMapping

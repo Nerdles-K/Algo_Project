@@ -156,7 +156,8 @@ public class FriendsController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "you must follow this user first");
         }
 
-        List<Graph.VideoScore> scores = g.rankCandidatesByCompositeScore(friendNodeId, alpha, beta, gamma, prMode);
+        // excludeWatched=true: recommend videos the friend has not already watched
+        List<Graph.VideoScore> scores = g.rankCandidatesByCompositeScore(friendNodeId, alpha, beta, gamma, prMode, true);
 
         List<Map<String, Object>> items = scores.stream()
             .limit(top)

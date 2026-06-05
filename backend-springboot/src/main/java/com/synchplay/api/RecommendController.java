@@ -35,7 +35,8 @@ public class RecommendController {
         String graphNodeId = user.getGraphNodeId();
         Graph g = graphService.getGraph();
 
-        List<Graph.VideoScore> scores = g.rankCandidatesByCompositeScore(graphNodeId, alpha, beta, gamma, prMode);
+        // excludeWatched=true: drop videos the user has already watched (closes the feedback loop)
+        List<Graph.VideoScore> scores = g.rankCandidatesByCompositeScore(graphNodeId, alpha, beta, gamma, prMode, true);
 
         List<Map<String, Object>> items = scores.stream()
             .limit(top)
