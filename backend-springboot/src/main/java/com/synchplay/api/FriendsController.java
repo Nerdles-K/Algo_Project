@@ -132,6 +132,67 @@ public class FriendsController {
         return result;
     }
 
+    /** Get recommendations for a specific friend (must already be following). */
+    @GetMapping("/{friendNodeId}/recommend")
+    public Map<String, Object> friendRecommend(
+            @AuthenticationPrincipal AppUser user,
+            @PathVariable String friendNodeId,
+            @RequestParam(defaultValue = "0.5") double alpha,
+            @RequestParam(defaultValue = "0.3") double beta,
+            @RequestParam(defaultValue = "0.2") double gamma,
+            @RequestParam(defaultValue = "full") String prMode,
+            @RequestParam(defaultValue = "10") int top) {
+
+        Graph g = graphService.getGraph();
+        Node me = g.getNode(user.getGraphNodeId());
+        Node friend = g.getNode(friendNodeId);
+        if (friend == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "friend graph node not found");
+        }
+
+        // Verify friendship: must have a social edge from me to friend
+        Edge socialEdge = g.findEdge(me, friend, "social");
+        if (socialEdge == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "you must follow this user first");
+        }
+
+        List<Graph.VideoScore> scores = g.rankCandidatesByCompositeScore(friendNodeId, alpha, beta, gamma, prMode);
+
+        List<Map<String, Object>> items = scores.stream()
+            .limit(top)
+            .map(vs -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", vs.video.getNodeId());
+                m.put("title", vs.video.getDisplayName());
+                m.put("videoId", vs.video.getOriginalId());
+                m.put("channel", vs.video.getAttribute("channel"));
+                m.put("views", vs.video.getAttribute("views"));
+                m.put("likes", vs.video.getAttribute("likes"));
+                m.put("distance", Math.round(vs.distance * 1000.0) / 1000.0);
+                m.put("pageRankScore", vs.pageRankScore);
+                m.put("popularityScore", Math.round(vs.popularityScore * 10000.0) / 10000.0);
+                m.put("finalScore", vs.finalScore);
+                return m;
+            })
+            .toList();
+
+        double sum = alpha + beta + gamma;
+        double aN = sum > 0 ? alpha / sum : 0.0;
+        double bN = sum > 0 ? beta  / sum : 0.0;
+        double gN = sum > 0 ? gamma / sum : 0.0;
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("friendNodeId", friendNodeId);
+        result.put("friendName", friend.getDisplayName());
+        result.put("alpha", Math.round(aN * 100.0) / 100.0);
+        result.put("beta",  Math.round(bN * 100.0) / 100.0);
+        result.put("gamma", Math.round(gN * 100.0) / 100.0);
+        result.put("prMode", prMode);
+        result.put("count", items.size());
+        result.put("recommendations", items);
+        return result;
+    }
+
     /** Remove a friend (deletes the social edge). */
     @DeleteMapping
     public Map<String, Object> removeFriend(
