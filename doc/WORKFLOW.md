@@ -80,9 +80,20 @@ mvn spring-boot:run
 **Compilation:**
 ```bash
 mvn compile          # only compile
-mvn test             # run tests (when we have them)
+mvn test             # run tests (40 unit tests, no DB needed)
 mvn package          # build executable JAR
 ```
+
+**Spring profiles (FR-E.2):** the backend defaults to the `dev` profile
+(verbose logging + SQL echo + baked-in JWT secret). For a deployment run:
+```bash
+SPRING_PROFILES_ACTIVE=prod \
+JWT_SECRET=<32+ byte secret> \
+FRONTEND_ORIGIN=https://your.app \
+  mvn spring-boot:run
+```
+`prod` quiets logging to INFO and has **no** insecure defaults — if
+`JWT_SECRET` or `FRONTEND_ORIGIN` are missing the app fails fast on boot.
 
 ### 2.2 Frontend (Vue 3 + Vite)
 

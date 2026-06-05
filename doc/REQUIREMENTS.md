@@ -83,7 +83,7 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | ID | Requirement | Priority | Status |
 |----|------------|----------|--------|
 | FR-E.1 | `GET /api/health` returns `{status, db: ok/error, graph: {nodes, edges}}` — public | High | ✅ |
-| FR-E.2 | Spring profiles: `dev` (verbose logs), `prod` (info+) | Medium | ⏳ (W11 polish) |
+| FR-E.2 | Spring profiles: `dev` (verbose logs), `prod` (info+) | Medium | ✅ (`application.yml` multi-doc; defaults to `dev`; `prod` quiets logs + requires `JWT_SECRET`/`FRONTEND_ORIGIN` env, no insecure defaults) |
 | FR-E.3 | `application.yml` with externalized config (DB URL, JWT secret) | High | ✅ (all values overridable via env vars) |
 | FR-E.4 | CORS allow `http://localhost:5173` (Vite dev) and configurable origin | High | ✅ (`synchplay.cors.allowed-origin`) |
 | FR-E.5 | One-command dev startup: `bash dev.sh` (parallel `mvn spring-boot:run` + `npm run dev`) | Medium | ✅ |
