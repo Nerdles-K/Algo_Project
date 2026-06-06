@@ -159,7 +159,7 @@ curl -i http://localhost:8080/api/stats          # → 401
 [ ] /login renders; submitting bad creds shows error
 [ ] /register works; auto-logs in
 [ ] After login, JWT visible in DevTools → Application → localStorage
-[ ] All 5 tabs reachable from top nav; no 401s in Network tab
+[ ] All 7 tabs (Recommend/Friends/Overview/Echo Chamber/PageRank/History/Upload) reachable from top nav; no 401s in Network tab
 [ ] Logout clears token and routes back to /login
 [ ] Refresh on /app/recommend stays logged in (token persisted)
 [ ] Refresh with expired/missing token → redirected to /login

@@ -7,7 +7,7 @@
 | Phase 1: Setup | W1–W3 | Environment & Data | Python sampling, VS Code config, CSV export | ✅ **Complete** |
 | Phase 2: Algorithm MVP (v1) | W4–W8 | Algorithm Implementation | BFS, PageRank, LCC, Scoring, demo API + frontend | ✅ **Complete** |
 | Phase 3 (Original): Experiment Report | W9–W11 | Precision@K evaluation | — | ❌ **Cancelled (2026-05-11)** — replaced by Phase 4 rewrite |
-| **Phase 4: Production Rewrite (v2)** | W9–W12 | Spring Boot + Vue + Postgres + Auth | Full-stack rewrite | 🚀 **Active** |
+| **Phase 4: Production Rewrite (v2)** | W9–W12 | Spring Boot + Vue + Postgres + Auth | Full-stack rewrite | ✅ **Complete** (+ post-presentation features in Jun) |
 
 **Current date:** 2026-05-11 (Week 9). Project scope shifted from "algorithm-course MVP" to "production-style full-stack rewrite". v1 codebase preserved under `backend/` + `frontend/`; v2 built fresh under `backend-springboot/` + `frontend-vue/`.
 
@@ -50,7 +50,7 @@
 | Echo Chamber (LCC) tab | Member C | Risk cards + top-20 table | ✅ 2026-05-11 |
 | PageRank tab | Member C | Top-15 video table | ✅ 2026-05-11 |
 | End-to-end smoke test (register → login → all 5 tabs) | All | Manual checklist passes | ✅ 2026-05-12 (automated: `bash doc/smoke_test.sh` covers all API endpoints; UI paths verified manually) |
-| JUnit 5 unit tests (Graph algorithms, FriendRec, JwtService) | All | `mvn test` green | ✅ 2026-05-13 (29 tests, all green: GraphTest 17 · FriendRecommendationServiceTest 5 · JwtServiceTest 7) |
+| JUnit 5 unit tests (Graph algorithms, FriendRec, JwtService) | All | `mvn test` green | ✅ 2026-05-13 (started at 29 tests; now **47** after later coverage — see post-presentation section) |
 | Upgrade recommendation algorithm (Dijkstra + popularity + γ weight) | Member B | edge weights + views/likes integrated | ✅ 2026-05-13 |
 | Demo data: pre-seed 3 demo accounts mapped to interesting graph nodes | Member A | Login as `demo1/demo2/demo3` shows distinct recs | ✅ 2026-05-12 (DemoDataService seeds on boot; password: demo123) |
 | `dev.sh` orchestration script | Member A | One command starts backend + frontend | ✅ 2026-05-12 |
@@ -63,7 +63,8 @@
 | Slide deck (6 algorithms + system architecture + live demo plan) | All | 8–10 slides | ✅ 2026-05-12 (outline in doc/SLIDES_OUTLINE.md — transfer to presentation software) |
 | Live demo rehearsal | All | <10 min demo flow | ✅ 2026-05-12 (demo flow in Slide 9 of SLIDES_OUTLINE.md; run `./dev.sh` then walk tabs) |
 | README.md at repo root explaining how to run | Member A | New cloner can `./dev.sh` | ✅ 2026-05-12 |
-| Final presentation | All | — | ⏳ |
+| Slide deck rendered to a self-contained HTML deck | All | `doc/slides.html` (keyboard-navigable, offline) | ✅ 2026-06-05 |
+| Final presentation | All | — | ✅ delivered (W12) |
 
 ### Week 10–11 — Post-v2 Enhancements (2026-05-18)
 
@@ -77,6 +78,20 @@
 | LoginPage bug fix | Switched to raw `axios` (bypass 401 interceptor); demo quick-fill buttons | ✅ 2026-05-17 |
 | `@Order` method-level fix | Moved `@Order` from class to `@EventListener` method on GraphService + DemoDataService | ✅ 2026-05-17 |
 | SynchPlay project skill | `.claude/skills/synchplay/SKILL.md` with project knowledge + common gotchas | ✅ 2026-05-17 |
+
+### Post-presentation work (2026-06-05 / 06)
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| Per-friend recommendations | `GET /api/friends/{id}/recommend` + expandable Recs panel in FriendsTab | ✅ 2026-06-05 |
+| **Watch feedback loop closed** | `POST /api/watch-history` now also creates a `user→video` `watch` edge; `/api/recommend` excludes already-watched videos (FR-A.9, FR-C.9) | ✅ 2026-06-06 |
+| **Creator publish** | `POST /api/videos` registers a video node + `creator→video` `uploaded` edge from a YouTube link; `GET /api/videos/mine` (FR-C.10) | ✅ 2026-06-06 |
+| **Native video upload** | `POST /api/videos/upload` (multipart) stores a real file + browser-captured thumbnail under `./uploads`, served at `/media/**` with HTTP Range; in-app HTML5 player; `nodes.source/media_path/thumb_path` (V4) (FR-C.11, FR-D.13) | ✅ 2026-06-06 |
+| dev/prod Spring profiles | `application.yml` multi-doc; prod requires `JWT_SECRET`/`FRONTEND_ORIGIN` (FR-E.2) | ✅ 2026-06-05 |
+| CI | GitHub Actions: backend `mvn test` + frontend build on push/PR | ✅ 2026-06-05 |
+| Test coverage | JWT filter + graph edge + watch-loop + YouTube-id tests → **47 tests** (was 29) | ✅ 2026-06-06 |
+| v1 removed | `backend/` + `frontend/` deleted (recoverable from git history); prototype Python scripts moved to `scripts/` | ✅ 2026-06-06 |
+| Algorithm + frontend backlogs | `doc/ALGORITHM_ASSIGNMENTS.md` (members B/C) + `doc/FRONTEND_IMPROVEMENTS.md` | ✅ 2026-06-06 |
 
 ---
 
@@ -114,7 +129,8 @@
 | Frontend skeleton runs (Vue + login) | W10 (May 24) | 2026-05-11 | ✅ Achieved 13 days early |
 | All 5 tabs working in v2 | W11 (May 31) | 2026-05-11 | ✅ Achieved 20 days early |
 | Watch history, LCC per-user, friend edges | W11+ | 2026-05-18 | ✅ |
-| Final presentation | W12 (Jun 1) | — | ⏳ |
+| Final presentation | W12 (Jun 1) | Jun 1 | ✅ |
+| Post-presentation features (watch loop, video upload, profiles, CI) | — | 2026-06-05/06 | ✅ |
 
 ---
 

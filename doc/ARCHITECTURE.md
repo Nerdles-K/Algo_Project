@@ -96,10 +96,15 @@ Algo_Project/
 │   │   │   └── FriendRecommendationService.java
 │   │   └── api/
 │   │       ├── RecommendController.java
-│   │       ├── FriendsController.java
+│   │       ├── FriendsController.java       # incl. GET /{id}/recommend
 │   │       ├── LccController.java
 │   │       ├── PageRankController.java
-│   │       └── StatsController.java
+│   │       ├── StatsController.java
+│   │       ├── HealthController.java
+│   │       ├── UsersController.java
+│   │       ├── WatchHistoryController.java  # watch feedback loop
+│   │       └── VideosController.java         # creator publish + native upload
+│   │   └── config/WebConfig.java            # serves /media/** (uploaded files, HTTP Range)
 │   ├── src/main/resources/
 │   │   ├── application.yml
 │   │   └── db/migration/
@@ -160,15 +165,30 @@ CREATE TABLE nodes (
     display_name TEXT,
     channel      TEXT,
     views        BIGINT,
-    likes        BIGINT
+    likes        BIGINT,
+    -- V4: native uploaded videos
+    source       VARCHAR(16) NOT NULL DEFAULT 'youtube',  -- 'youtube' | 'native'
+    media_path   VARCHAR(255),            -- uploaded file (native only)
+    thumb_path   VARCHAR(255)             -- captured thumbnail (native only)
 );
 
 CREATE TABLE edges (
     id        BIGSERIAL PRIMARY KEY,
     src       VARCHAR(64) NOT NULL REFERENCES nodes(node_id),
     dst       VARCHAR(64) NOT NULL REFERENCES nodes(node_id),
-    edge_type VARCHAR(16) NOT NULL,        -- 'community' | 'watch' | 'similar'
+    edge_type VARCHAR(16) NOT NULL,        -- 'social' | 'watch' | 'similar' | 'uploaded'
     weight    DOUBLE PRECISION NOT NULL DEFAULT 1.0
+);
+
+-- V2: watch history (also drives the watch→edge feedback loop)
+CREATE TABLE watch_history (
+    id            BIGSERIAL PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES app_users(id),
+    video_node_id VARCHAR(64),
+    video_id      VARCHAR(64),
+    title         TEXT,
+    channel       TEXT,
+    watched_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_edges_src       ON edges(src);
@@ -176,6 +196,8 @@ CREATE INDEX idx_edges_dst       ON edges(dst);
 CREATE INDEX idx_edges_type      ON edges(edge_type);
 CREATE INDEX idx_nodes_type      ON nodes(node_type);
 ```
+
+> Schema evolves via Flyway `V1`→`V4`: V1 base (app_users/nodes/edges), V2 `watch_history`, V3 `app_users.role`, V4 native-video columns on `nodes`.
 
 ### 4.2 Domain Layer (Graph in memory)
 

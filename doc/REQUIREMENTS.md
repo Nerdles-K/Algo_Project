@@ -151,7 +151,7 @@ Supporting Flow: Echo chamber check
 | Registration works | POST /api/auth/register with new username returns 201 + JWT; duplicate returns 409 |
 | Login works | POST /api/auth/login with valid creds returns 200 + JWT; bad creds return 401 |
 | Protected endpoint requires auth | GET /api/recommend without token returns 401 |
-| All 5 tabs render | Logged-in user can navigate to all 5 tabs without errors |
+| All tabs render | Logged-in user can navigate to all 7 tabs without errors |
 | Recommendations personalized | Different registered users get different recommendation orderings (mapped to different graph nodes) |
 | Logout works | Clicking logout clears token, redirects to /login, subsequent API calls return 401 |
 

@@ -50,7 +50,10 @@ Algo_Project/
 │           ├── FriendsController.java         # GET/POST/DELETE /api/friends
 │           ├── LccController.java             # GET /api/lcc (个人) + /api/lcc/admin (全局)
 │           ├── PageRankController.java        # GET /api/pagerank
-│           └── WatchHistoryController.java    # POST/GET /api/watch-history
+│           ├── WatchHistoryController.java    # POST/GET /api/watch-history（观看反馈闭环）
+│           └── VideosController.java          # POST /api/videos[/upload]、GET /api/videos/mine（创作者发布 + 原生上传）
+│       └── config/
+│           └── WebConfig.java                 # /media/** 静态服务上传文件（HTTP Range）
 │
 ├── frontend-vue/                     ← v2 前端（Vue 3 + Vite + Pinia）
 │   ├── vite.config.js
@@ -127,6 +130,9 @@ Algo_Project/
 │  │  FriendsController   /api/friends     （需认证）        │  │
 │  │  LccController       /api/lcc         （需认证）        │  │
 │  │  PageRankController  /api/pagerank    （需认证）        │  │
+│  │  WatchHistoryController /api/watch-history（需认证）     │  │
+│  │  VideosController    /api/videos[/upload|/mine]（需认证）│  │
+│  │  WebConfig           /media/**        （公开,流播放）    │  │
 │  └────────────────────────────────────────────────────────┘  │
 │            │                      │                          │
 │       GraphService             AppUserRepository             │
@@ -170,10 +176,11 @@ Algo_Project/
 ### 数据库（v2）
 
 - **PostgreSQL 17**（本地 brew 安装，DB: `synchplay`，user: `synchplay`）
-- Flyway 管理 Schema，`V1__init.sql` 建立三张表：
-  - `app_users`：注册用户账号（username, email, password_hash, graph_node_id）
-  - `nodes`：图节点（483 行）
-  - `edges`：图边（945 行）
+- Flyway 管理 Schema（`V1`~`V4`），共四张业务表：
+  - `app_users`：注册用户账号（username, email, password_hash, graph_node_id, `role` USER/ADMIN — V3）
+  - `nodes`：图节点（483 行起；新增 `source`('youtube'/'native')、`media_path`、`thumb_path` — V4 支持原生上传）
+  - `edges`：图边（945 起；新增 `watch`(观看)、`uploaded`(发布) 边类型）
+  - `watch_history`：观看记录（user_id, video_node_id, video_id, title, channel, watched_at — V2）
 - `DataImportService`（CommandLineRunner）启动时幂等地将 CSV 导入 `nodes`/`edges`；若已有数据则跳过
 - `GraphService` 在 `ApplicationReadyEvent` 时将 Postgres 数据加载到内存 `Graph` 对象，耗时约 10 ms
 

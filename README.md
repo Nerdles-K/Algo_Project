@@ -52,7 +52,7 @@ Three accounts are seeded automatically on first boot:
 
 | Username | Password | Notes |
 |----------|----------|-------|
-| `demo1` | `demo123` | Maps to graph node A |
+| `demo1` | `demo123` | Maps to graph node A · **ADMIN** (can view all-users echo-chamber table) |
 | `demo2` | `demo123` | Maps to graph node B |
 | `demo3` | `demo123` | Maps to graph node C |
 
@@ -64,11 +64,13 @@ Each demo user is assigned a different graph node so their recommendations diffe
 
 | Tab | Description |
 |-----|-------------|
-| **Overview** | 9 graph statistics: node count, edge count, avg degree, density, LCC size, etc. |
-| **Recommend** | Personalized video recommendations via composite scoring (α·distance + β·PageRank) |
-| **Friends** | BFS-based friend suggestions for any user node, ranked by shared connections |
-| **Echo Chamber** | Largest Connected Component analysis — visualizes filter-bubble risk |
+| **Recommend** | Personalized recommendations via composite scoring (α·distance + β·PageRank + γ·popularity); already-watched videos excluded |
+| **Friends** | Friend suggestions ranked by shared connections; Follow/Unfollow; expand a friend for their recommendations |
+| **Overview** | Graph statistics: node count, edge count, avg degree, density, etc. |
+| **Echo Chamber** | Local Clustering Coefficient — per-user filter-bubble risk (admins see all users) |
 | **PageRank** | Top-N videos ranked by PageRank score (full-graph or watch-graph mode) |
+| **History** | Your watch history; each watch also feeds back into the graph (closes the recommendation loop) |
+| **Upload** | Publish a video into the graph — paste a YouTube link **or upload a real file** (hosted + played in-app) |
 
 ---
 
@@ -85,12 +87,15 @@ Algo_Project/
 │       └── service/              # GraphService, DemoDataService, etc.
 ├── frontend-vue/                 # Vue 3 v2 frontend
 │   └── src/
-│       ├── views/                # Tab components (5 tabs + login/register)
+│       ├── views/                # Tab components (7 tabs + login/register)
+│       ├── components/           # VideoThumb, VideoModal (in-app player)
+│       ├── utils/                # video.js (native/YouTube helpers, thumbnail capture)
 │       ├── stores/               # Pinia auth store
 │       ├── router/               # Vue Router with auth guards
 │       └── api/                  # Axios client with Bearer interceptor
+├── scripts/                      # v1-era Python: data prep + algorithm prototypes
 ├── ProcessedData/
-│   ├── mini_nodes.csv            # 500 nodes (users + videos)
+│   ├── mini_nodes.csv            # 483 nodes (users + videos)
 │   └── mini_edges.csv            # 945 edges
 └── doc/                          # Architecture, progress, and summary docs
 ```
@@ -109,8 +114,13 @@ All business endpoints require `Authorization: Bearer <token>`.
 | GET | `/api/stats` | Graph statistics |
 | GET | `/api/recommend` | Personalized recommendations |
 | GET | `/api/friends` | Friend suggestions |
-| GET | `/api/lcc` | Echo chamber / LCC analysis |
+| GET | `/api/lcc` | Echo chamber / LCC analysis (`/api/lcc/admin` = all users, ADMIN only) |
 | GET | `/api/pagerank` | Top-N videos by PageRank |
+| GET/POST | `/api/watch-history` | List / record a watch (recording also adds a `watch` edge) |
+| POST | `/api/videos` | Publish a video node from a YouTube link |
+| POST | `/api/videos/upload` | Upload a real video file (multipart) → native video node |
+| GET | `/api/videos/mine` | Videos the current user published |
+| GET | `/media/**` | Serves uploaded files/thumbnails (public, HTTP Range) |
 
 ---
 

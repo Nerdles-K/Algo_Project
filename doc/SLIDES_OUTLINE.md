@@ -29,7 +29,7 @@
 
 ## Slide 3 — Dataset & Graph Structure
 
-**Heterogeneous Graph: 500 nodes, 945 edges**
+**Heterogeneous Graph: 483 nodes, 945 edges**
 
 | Node Type | Count | Attributes |
 |-----------|-------|------------|
@@ -142,7 +142,7 @@ popularity(v) = 0.6 · log(1+views)/log(1+maxViews)
 ┌────────────────▼─────────────────────────────────┐
 │  Spring Boot 3.3 Backend  (:8080)                │
 │  Spring Security + JWT · 7 REST endpoints        │
-│  In-memory Graph (500 nodes, 945 edges)          │
+│  In-memory Graph (483 nodes, 945 edges)          │
 └──────────┬──────────────────────────┬────────────┘
            │ JPA (Flyway migrations)  │ CSV import (boot)
 ┌──────────▼──────────────────────────▼────────────┐
@@ -173,7 +173,7 @@ popularity(v) = 0.6 · log(1+views)/log(1+maxViews)
 **What we built:**
 - Full-stack app: Spring Boot + PostgreSQL + Vue 3 + JWT in 3 weeks
 - 6 algorithms: BFS, PageRank (×2 modes), Composite Scoring, LCC, Friend BFS
-- All running live in < 50 ms per request on a 500-node graph
+- All running live in < 50 ms per request on a 483-node graph
 
 **Lessons learned:**
 - Heterogeneous graphs (user + video nodes) require careful BFS scoping
