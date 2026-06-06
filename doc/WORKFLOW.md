@@ -314,15 +314,6 @@ Per project rule: **update doc files after every small completion.**
 
 ---
 
-## 9. v1 Workflow (Preserved Reference)
+## 9. v1 Workflow (Removed)
 
-The v1 codebase (`backend/` + `frontend/`) is preserved unmodified. To run it for comparison or fallback demo:
-
-```bash
-cd backend
-bash compile.sh
-bash start.sh           # :8080
-open ../frontend/index.html
-```
-
-v1 details — for example, `compile.sh` 5-step build, `start.sh` auto-imports CSV → SQLite — are documented in this file's git history prior to the v2 rewrite and in the v1 code's inline comments.
+The v1 codebase (`backend/` + `frontend/`) has been removed from the working tree. To inspect or run it, check out a commit before the v2 rewrite from git history (it built via `backend/compile.sh` + `backend/start.sh`, auto-importing CSV → SQLite). The v1-era Python scripts (data prep + algorithm prototypes) are kept at the repo root under `scripts/`.

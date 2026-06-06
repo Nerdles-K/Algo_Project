@@ -161,7 +161,7 @@ Supporting Flow: Echo chamber check
 
 | Step | What | When |
 |------|------|------|
-| 1 | Keep v1 code intact under `backend/` and `frontend/`; document as "v1 reference impl" | W9 (done) |
+| 1 | Keep v1 code under `backend/` and `frontend/` during the rewrite (later removed from the tree once v2 was stable; recoverable from git history) | W9 (done) |
 | 2 | Scaffold `backend-springboot/` (pom.xml, application.yml, Postgres schema) | W9 |
 | 3 | Port `Graph.java`, `Node.java`, `Edge.java`, `DataLoader.java` into Spring services | W9 |
 | 4 | Implement auth (entities, JwtService, SecurityConfig, controllers) | W9–W10 |

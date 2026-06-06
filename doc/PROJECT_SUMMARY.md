@@ -8,7 +8,7 @@ SynchPlay 是一款基于社交图谱的视频推荐引擎，核心目标是解�
 
 | 版本 | 目录 | 技术 | 状态 |
 |------|------|------|------|
-| **v1**（算法原型） | `backend/` + `frontend/` | Java 22 裸 HTTP + SQLite + 原生 JS | ✅ 保留为参考实现 |
+| **v1**（算法原型） | （已从工作区移除） | Java 22 裸 HTTP + SQLite + 原生 JS | 📦 见 v2 重写前的 git 历史；数据准备/算法原型 Python 脚本保留在 `scripts/` |
 | **v2**（生产重写） | `backend-springboot/` + `frontend-vue/` | Spring Boot + PostgreSQL + Vue 3 + JWT | ✅ 当前主版本 |
 
 ---
@@ -75,8 +75,7 @@ Algo_Project/
 │           ├── LccTab.vue                    # 茧房检测（LCC）
 │           └── PageRankTab.vue               # PageRank 热度榜
 │
-├── backend/                          ← v1 参考实现（保留，不再维护）
-├── frontend/                         ← v1 参考前端（保留，不再维护）
+├── scripts/                          ← 数据准备 + 算法原型 Python 脚本（v1 遗留，保留）
 │
 ├── Dataset/                          ← 原始数据集
 │   ├── archive/USvideos.csv          #   Kaggle YouTube Trending（美区）
@@ -156,7 +155,7 @@ Algo_Project/
 | SNAP YouTube 社区数据 | 用户及社交关系（community detection 分组） | 39,841 用户 |
 | Kaggle YouTube Trending（美区） | 热门视频：标题、频道、播放量、点赞数 | 40,949 视频 |
 
-**抽样**：`backend/scripts/data_preparation.py`（seed=42）随机抽取 100 用户 + 400 视频，生成 945 条边，写入 `ProcessedData/mini_nodes.csv` 和 `mini_edges.csv`。
+**抽样**：`scripts/data_preparation.py`（seed=42，从仓库根目录运行）随机抽取 100 用户 + 400 视频，生成 945 条边，写入 `ProcessedData/mini_nodes.csv` 和 `mini_edges.csv`。
 
 ### 图数据统计
 

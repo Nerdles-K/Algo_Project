@@ -1,6 +1,6 @@
 # SynchPlay — Project Architecture Document (v2)
 
-> **2026-05-11 (W9):** Project re-scoped from "algorithm-course MVP" (v1) to "production-style full-stack" (v2). v1 implementation is preserved under `backend/` + `frontend/` as a reference. This document describes the **v2 target architecture**; v1 layout is documented in §11.
+> **2026-05-11 (W9):** Project re-scoped from "algorithm-course MVP" (v1) to "production-style full-stack" (v2). The v1 implementation has since been removed from the working tree (available in git history before the v2 rewrite); its data-prep / algorithm-prototype Python scripts are kept under `scripts/`. This document describes the **v2 architecture**.
 
 ## 1. Overview
 
@@ -127,8 +127,7 @@ Algo_Project/
 │           ├── LccTab.vue
 │           └── PageRankTab.vue
 │
-├── backend/                        # PRESERVED: v1 reference impl (do not modify)
-├── frontend/                       # PRESERVED: v1 reference impl (do not modify)
+├── scripts/                        # v1-era Python: data prep + algorithm prototypes
 ├── ProcessedData/                  # Shared: CSV + initial DB seed
 ├── Dataset/                        # Raw data
 ├── doc/                            # Engineering docs (this folder)
@@ -388,11 +387,6 @@ server.port: 8080
 
 ---
 
-## 11. v1 Reference Architecture (Preserved)
+## 11. v1 Reference Architecture (Removed)
 
-The v1 implementation under `backend/` (com.sun.net.httpserver, SQLite) and `frontend/` (vanilla HTML/CSS/JS) is **preserved unmodified** as a reference. It demonstrates the same 6 algorithms in a zero-dependency form. See git history before commit `<v2-start>` for the original architecture document. Run v1 with:
-
-```bash
-cd backend && bash start.sh        # localhost:8080
-open ../frontend/index.html
-```
+The v1 implementation — `backend/` (com.sun.net.httpserver, SQLite) + `frontend/` (vanilla HTML/CSS/JS), the same 6 algorithms in a zero-dependency form — has been **removed from the working tree**. It remains fully recoverable from git history (any commit before the v2 rewrite). The Python data-prep and algorithm-prototype scripts that originated under `backend/scripts/` are kept at the repo root under `scripts/`.
