@@ -62,6 +62,7 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-C.7 | Friend Recommendation (collaborative filtering) | Medium | ✅ |
 | FR-C.8 | **Friend edge creation/deletion**: `POST /api/friends` creates a social edge (persisted to DB + in-memory graph); `DELETE /api/friends` removes it | Medium | ✅ (2026-05-18) |
 | FR-C.9 | **Exclude already-watched**: `/api/recommend` and `/api/friends/{id}/recommend` drop videos the target has a direct `watch` edge to, so watched videos never re-surface and the feed shifts as you watch | High | ✅ (2026-06-06) |
+| FR-C.10 | **Creator publish**: `POST /api/videos` registers a new `video` node + `creator→video` "uploaded" edge (DB + in-memory graph) from a real YouTube link; `GET /api/videos/mine` lists the user's published videos. New nodes start cold (reachable only via the creator's edges) and accrue reach/PageRank organically | Medium | ✅ (2026-06-06) |
 
 ### FR-D: Frontend (REWRITE)
 
@@ -79,6 +80,7 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-D.10 | **Watch History tab**: `/app/watch-history` shows the authenticated user's watch history in a table (thumbnail, title, channel, timestamp) | Medium | ✅ (2026-05-18) |
 | FR-D.11 | **LCC personal view**: Each user sees only their own echo chamber level; admin users can load the all-users table via `/api/lcc/admin` | Medium | ✅ (2026-05-18) |
 | FR-D.12 | **Friends tab with Follow/Unfollow**: Existing friends shown with Unfollow button; recommended friends with Follow button; API calls persist edges | Medium | ✅ (2026-05-18) |
+| FR-D.13 | **Upload tab**: `/app/upload` — creator form (YouTube link, title, channel, initial views/likes) posts to `/api/videos`; below it a "My Videos" grid loaded from `/api/videos/mine` | Medium | ✅ (2026-06-06) |
 
 ### FR-E: System Operations
 

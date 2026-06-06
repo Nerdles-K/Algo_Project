@@ -482,6 +482,8 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 | `/api/pagerank` | GET | `prMode`(full\|watch), `top`(15) | 视频 PageRank 热度排行 |
 | `/api/watch-history` | GET | `limit`(50) | 当前用户观看历史 |
 | `/api/watch-history` | POST | body: `{videoNodeId, videoId, title, channel}` | 记录一次观看；同时在图+`edges`表建 user→video `watch` 边（幂等），闭合反馈回路 |
+| `/api/videos` | POST | body: `{youtubeUrl, title, channel?, views?, likes?}` | 创作者发布：建 `video` 节点 + `creator→video` `uploaded` 边（DB+内存图）；重复返回 409 |
+| `/api/videos/mine` | GET | — | 当前用户已发布的视频列表 |
 
 ---
 
