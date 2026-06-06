@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import client from '../api/client'
+import { thumbSrc, openVideo } from '../utils/video'
 
 const loading = ref(false)
 const error = ref('')
@@ -19,10 +20,6 @@ async function load() {
   } finally {
     loading.value = false
   }
-}
-
-function openVideo(v) {
-  window.open(`https://www.youtube.com/watch?v=${v.video_id}`, '_blank', 'noopener')
 }
 
 function formatTime(ts) {
@@ -68,15 +65,18 @@ onMounted(load)
             <td style="color:var(--text-dim)">{{ i + 1 }}</td>
             <td>
               <img
+                v-if="thumbSrc(v)"
                 class="table-thumb"
-                :src="`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`"
+                :src="thumbSrc(v)"
                 :alt="v.title"
                 style="width:120px"
               />
+              <div v-else class="table-thumb thumb-placeholder" style="width:120px">▶</div>
             </td>
             <td>
               <a class="video-link" @click.prevent="openVideo(v)">
                 {{ v.title }}
+                <span v-if="v.source === 'native'" class="native-badge">native</span>
               </a>
             </td>
             <td style="color:var(--accent2)">{{ v.channel }}</td>

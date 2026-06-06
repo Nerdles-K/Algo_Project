@@ -237,3 +237,27 @@ tr:hover td { background: var(--card-bg); }
 .pr-bar { height: 8px; border-radius: 4px; background: var(--accent2); min-width: 2px; }
 
 h2 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+
+/* Badge marking a natively-uploaded (SynchPlay-hosted) video */
+.native-badge {
+  display: inline-block;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent2, #7c5bff);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Placeholder shown for a native video with no captured thumbnail (table cells) */
+.table-thumb.thumb-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1f2a3d, #2b1f3d);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
+}

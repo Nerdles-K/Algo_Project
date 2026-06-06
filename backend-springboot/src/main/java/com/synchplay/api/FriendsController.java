@@ -173,6 +173,7 @@ public class FriendsController {
                 m.put("pageRankScore", vs.pageRankScore);
                 m.put("popularityScore", Math.round(vs.popularityScore * 10000.0) / 10000.0);
                 m.put("finalScore", vs.finalScore);
+                VideosController.enrichSource(m, vs.video);
                 return m;
             })
             .toList();

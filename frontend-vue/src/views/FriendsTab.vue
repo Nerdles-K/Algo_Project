@@ -1,6 +1,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import client from '../api/client'
+import VideoThumb from '../components/VideoThumb.vue'
+import { openVideo } from '../utils/video'
 
 const loading = ref(false)
 const error = ref('')
@@ -80,22 +82,8 @@ function markRecFailed(friendNodeId, videoId) {
   if (st) st.failedIds = { ...st.failedIds, [videoId]: true }
 }
 
-function onRecThumbLoad(e, friendNodeId, videoId) {
-  if (e.target.naturalWidth <= 120) markRecFailed(friendNodeId, videoId)
-}
-
 function visibleRecs(st) {
   return st.data?.recommendations?.filter(v => !st.failedIds[v.id]) ?? []
-}
-
-function openVideo(v) {
-  client.post('/api/watch-history', {
-    videoNodeId: v.id,
-    videoId: v.videoId,
-    title: v.title,
-    channel: v.channel,
-  }).catch(() => {})
-  window.open(`https://www.youtube.com/watch?v=${v.videoId}`, '_blank', 'noopener')
 }
 
 function initials(name) {
@@ -161,16 +149,13 @@ onMounted(load)
                   @click="openVideo(v)"
                   style="font-size:12px"
                 >
-                  <img
-                    class="thumb"
-                    :src="`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`"
-                    :alt="v.title"
-                    @load="e => onRecThumbLoad(e, f.id, v.id)"
-                    @error="markRecFailed(f.id, v.id)"
-                  />
+                  <VideoThumb :video="v" @dead="markRecFailed(f.id, v.id)" />
                   <div class="card-body" style="padding:8px 10px">
                     <div class="title" style="font-size:12px;line-height:1.3">{{ v.title }}</div>
-                    <div class="channel" style="font-size:10px;margin-bottom:4px">{{ v.channel }}</div>
+                    <div class="channel" style="font-size:10px;margin-bottom:4px">
+                      {{ v.channel }}
+                      <span v-if="v.source === 'native'" class="native-badge">native</span>
+                    </div>
                     <div style="font-size:10px;color:var(--text-dim)">
                       <span>dist: {{ v.distance }}</span>
                       <span style="margin-left:8px">score: {{ v.finalScore.toFixed(4) }}</span>

@@ -37,7 +37,8 @@ public class GraphService {
         log.info("Hydrating in-memory Graph from Postgres ...");
         long t0 = System.currentTimeMillis();
 
-        jdbc.query("SELECT node_id, node_type, original_id, display_name, channel, views, likes FROM nodes",
+        jdbc.query("SELECT node_id, node_type, original_id, display_name, channel, views, likes, " +
+                   "source, media_path, thumb_path FROM nodes",
             rs -> {
                 Node n = new Node(
                     rs.getString("node_id"),
@@ -50,6 +51,12 @@ public class GraphService {
                 if (channel != null) n.setAttribute("channel", channel);
                 if (!rs.wasNull()) n.setAttribute("likes", String.valueOf(likes));
                 if (views > 0)     n.setAttribute("views", String.valueOf(views));
+                String source = rs.getString("source");
+                if (source != null) n.setAttribute("source", source);
+                String mediaPath = rs.getString("media_path");
+                if (mediaPath != null) n.setAttribute("mediaPath", mediaPath);
+                String thumbPath = rs.getString("thumb_path");
+                if (thumbPath != null) n.setAttribute("thumbPath", thumbPath);
                 graph.addNode(n);
             });
 

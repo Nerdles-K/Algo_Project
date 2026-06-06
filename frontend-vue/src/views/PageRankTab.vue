@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import client from '../api/client'
+import { thumbSrc, isNative, openVideo } from '../utils/video'
 
 const prMode = ref('full')
 const top = ref(15)
@@ -42,18 +43,12 @@ function markFailed(id) {
   failedIds.value = { ...failedIds.value, [id]: true }
 }
 
-function onThumbLoad(e, id) {
-  if (e.target.naturalWidth <= 120) markFailed(id)
+// YouTube thumbnails that fail to load mean a dead video; native thumbs are never filtered.
+function onThumbLoad(e, v) {
+  if (!isNative(v) && e.target.naturalWidth <= 120) markFailed(v.id)
 }
-
-function openVideo(v) {
-  client.post('/api/watch-history', {
-    videoNodeId: v.id,
-    videoId: v.videoId,
-    title: v.title,
-    channel: v.channel,
-  }).catch(() => {})
-  window.open(`https://www.youtube.com/watch?v=${v.videoId}`, '_blank', 'noopener')
+function onThumbError(v) {
+  if (!isNative(v)) markFailed(v.id)
 }
 </script>
 
@@ -103,16 +98,19 @@ function openVideo(v) {
             <td style="color:var(--text-dim)">{{ i + 1 }}</td>
             <td>
               <img
+                v-if="thumbSrc(v)"
                 class="table-thumb"
-                :src="`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`"
+                :src="thumbSrc(v)"
                 :alt="v.title"
-                @load="e => onThumbLoad(e, v.id)"
-                @error="markFailed(v.id)"
+                @load="e => onThumbLoad(e, v)"
+                @error="onThumbError(v)"
               />
+              <div v-else class="table-thumb thumb-placeholder">▶</div>
             </td>
             <td>
               <a class="video-link" @click.prevent="openVideo(v)">
                 {{ v.title }}
+                <span v-if="v.source === 'native'" class="native-badge">native</span>
               </a>
             </td>
             <td style="color:var(--accent2)">{{ v.channel }}</td>

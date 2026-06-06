@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import client from '../api/client'
+import VideoThumb from '../components/VideoThumb.vue'
+import { openVideo } from '../utils/video'
 
 const alpha = ref(0.5)
 const beta = ref(0.3)
@@ -51,20 +53,6 @@ async function load() {
 
 function markFailed(id) {
   failedIds.value = { ...failedIds.value, [id]: true }
-}
-
-function onThumbLoad(e, id) {
-  if (e.target.naturalWidth <= 120) markFailed(id)
-}
-
-function openVideo(v) {
-  client.post('/api/watch-history', {
-    videoNodeId: v.id,
-    videoId: v.videoId,
-    title: v.title,
-    channel: v.channel,
-  }).catch(() => {}) // fire-and-forget
-  window.open(`https://www.youtube.com/watch?v=${v.videoId}`, '_blank', 'noopener')
 }
 
 onMounted(load)
@@ -119,16 +107,13 @@ onMounted(load)
         class="video-card"
         @click="openVideo(v)"
       >
-        <img
-          class="thumb"
-          :src="`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`"
-          :alt="v.title"
-          @load="e => onThumbLoad(e, v.id)"
-          @error="markFailed(v.id)"
-        />
+        <VideoThumb :video="v" @dead="markFailed(v.id)" />
         <div class="card-body">
           <div class="title">{{ v.title }}</div>
-          <div class="channel">{{ v.channel }}</div>
+          <div class="channel">
+            {{ v.channel }}
+            <span v-if="v.source === 'native'" class="native-badge">native</span>
+          </div>
           <div class="meta">
             <span>👁 {{ Number(v.views).toLocaleString() }}</span>
             <span>👍 {{ Number(v.likes).toLocaleString() }}</span>

@@ -16,3 +16,7 @@ frontend-vue/dist/
 
 # Logs
 *.log
+
+# Uploaded native video files (runtime data)
+backend-springboot/uploads/
+uploads/

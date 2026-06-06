@@ -483,7 +483,9 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 | `/api/watch-history` | GET | `limit`(50) | 当前用户观看历史 |
 | `/api/watch-history` | POST | body: `{videoNodeId, videoId, title, channel}` | 记录一次观看；同时在图+`edges`表建 user→video `watch` 边（幂等），闭合反馈回路 |
 | `/api/videos` | POST | body: `{youtubeUrl, title, channel?, views?, likes?}` | 创作者发布：建 `video` 节点 + `creator→video` `uploaded` 边（DB+内存图）；重复返回 409 |
+| `/api/videos/upload` | POST | multipart: `file`, `thumb?`, `title`, `channel?`, `views?`, `likes?` | 原生上传：存视频文件+封面到 `./uploads`，建 `source='native'` 视频节点 + `uploaded` 边 |
 | `/api/videos/mine` | GET | — | 当前用户已发布的视频列表 |
+| `/media/**` | GET | — | 静态服务上传的视频/封面（支持 HTTP Range，供 `<video>` 流播放）；公开 |
 
 ---
 

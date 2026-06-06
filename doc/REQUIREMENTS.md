@@ -63,6 +63,7 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-C.8 | **Friend edge creation/deletion**: `POST /api/friends` creates a social edge (persisted to DB + in-memory graph); `DELETE /api/friends` removes it | Medium | ✅ (2026-05-18) |
 | FR-C.9 | **Exclude already-watched**: `/api/recommend` and `/api/friends/{id}/recommend` drop videos the target has a direct `watch` edge to, so watched videos never re-surface and the feed shifts as you watch | High | ✅ (2026-06-06) |
 | FR-C.10 | **Creator publish**: `POST /api/videos` registers a new `video` node + `creator→video` "uploaded" edge (DB + in-memory graph) from a real YouTube link; `GET /api/videos/mine` lists the user's published videos. New nodes start cold (reachable only via the creator's edges) and accrue reach/PageRank organically | Medium | ✅ (2026-06-06) |
+| FR-C.11 | **Native video upload**: `POST /api/videos/upload` (multipart) stores a real video file + browser-captured thumbnail under `./uploads`, served at `/media/**` with HTTP Range; node carries `source='native'` and is played in-app via an HTML5 `<video>` modal. Native + YouTube videos coexist in the graph and all tabs | Medium | ✅ (2026-06-06) |
 
 ### FR-D: Frontend (REWRITE)
 

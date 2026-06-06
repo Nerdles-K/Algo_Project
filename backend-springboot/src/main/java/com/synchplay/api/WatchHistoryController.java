@@ -75,9 +75,19 @@ public class WatchHistoryController {
             @AuthenticationPrincipal AppUser user,
             @RequestParam(defaultValue = "50") int limit) {
         List<Map<String, Object>> items = jdbc.queryForList(
-            "SELECT id, video_node_id, video_id, title, channel, watched_at " +
-            "FROM watch_history WHERE user_id = ? ORDER BY watched_at DESC LIMIT ?",
+            "SELECT wh.id, wh.video_node_id, wh.video_id, wh.title, wh.channel, wh.watched_at, " +
+            "       n.source, n.media_path, n.thumb_path " +
+            "FROM watch_history wh LEFT JOIN nodes n ON n.node_id = wh.video_node_id " +
+            "WHERE wh.user_id = ? ORDER BY wh.watched_at DESC LIMIT ?",
             user.getId(), limit);
+
+        // Surface native media/thumb as ready-to-use /media URLs
+        for (Map<String, Object> m : items) {
+            Object media = m.get("media_path");
+            Object thumb = m.get("thumb_path");
+            if (media != null) m.put("streamUrl", "/media/" + media);
+            if (thumb != null) m.put("thumbUrl",  "/media/" + thumb);
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("userId", user.getId());

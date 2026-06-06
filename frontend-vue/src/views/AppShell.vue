@@ -1,6 +1,7 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import VideoModal from '../components/VideoModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -40,5 +41,6 @@ const tabs = [
     <main class="main-content">
       <router-view />
     </main>
+    <VideoModal />
   </div>
 </template>

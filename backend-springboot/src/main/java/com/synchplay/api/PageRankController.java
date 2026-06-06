@@ -44,6 +44,7 @@ public class PageRankController {
                 m.put("views", n.getAttribute("views"));
                 m.put("likes", n.getAttribute("likes"));
                 m.put("pageRankScore", e.getValue());
+                VideosController.enrichSource(m, n);
                 return m;
             })
             .toList();
