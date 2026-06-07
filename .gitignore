@@ -20,3 +20,10 @@ frontend-vue/dist/
 # Uploaded native video files (runtime data)
 backend-springboot/uploads/
 uploads/
+
+# Generated / vendored visualization artifacts (regenerate via scripts/make_graph_html.py)
+scripts/graph.html
+scripts/vis-network.min.js
+
+# CSV backups
+ProcessedData/*.bak

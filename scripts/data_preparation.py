@@ -94,6 +94,7 @@ try:
                 'dislikes': int(row['dislikes']),
                 'comment_count': int(row['comment_count']),
                 'publish_time': row['publish_time'],
+                'tags': row.get('tags', ''),   # 用于标签相似度
             })
     
     print(f"✓ 共读取 {len(videos)} 个视频")
@@ -127,20 +128,46 @@ for user_id in sampled_users:
 print(f"✓ 生成 {len(user_video_edges)} 条用户-视频交互关系")
 
 # ============================================================================
-# 第四步：生成视频-视频相似度边（基于频道）
+# 第四步：生成视频-视频相似度边（基于标签重叠 Jaccard）
+# 两视频共享标签数 ≥ MIN_SHARED 且 Jaccard ≥ SIM_THRESHOLD 才连边；
+# 每个视频最多保留 SIM_TOP_K 条最相似的边；边权 = Jaccard 分数（有梯度）。
+# 比"同频道"更能反映内容相似：跨频道同题材也能连上，且覆盖更广。
 # ============================================================================
-print("\n[第4步] 生成视频-视频相似度关系...")
+print("\n[第4步] 生成视频-视频相似度关系（标签 Jaccard）...")
 
-video_channel_map = defaultdict(list)
-for video in sampled_videos:
-    video_channel_map[video['channel']].append(video['video_id'])
+SIM_THRESHOLD = 0.05   # Jaccard 下限
+MIN_SHARED = 2         # 至少共享的标签数
+SIM_TOP_K = 10         # 每个视频最多保留的相似边
 
-video_video_edges = []
-for videos_in_channel in video_channel_map.values():
-    # 同一频道的视频相互连接
-    for i in range(len(videos_in_channel)):
-        for j in range(i + 1, len(videos_in_channel)):
-            video_video_edges.append((videos_in_channel[i], videos_in_channel[j], 0.5))
+def _parse_tags(t):
+    if not t or t == '[none]':
+        return set()
+    return {x.strip().strip('"').lower() for x in t.split('|') if x.strip().strip('"')}
+
+video_tags = {v['video_id']: _parse_tags(v['tags']) for v in sampled_videos}
+tagged = [vid for vid, tg in video_tags.items() if tg]
+
+sim_cand = defaultdict(list)   # video_id -> [(score, other)]
+for i in range(len(tagged)):
+    for j in range(i + 1, len(tagged)):
+        a, b = tagged[i], tagged[j]
+        ta, tb = video_tags[a], video_tags[b]
+        shared = len(ta & tb)
+        if shared < MIN_SHARED:
+            continue
+        jac = shared / len(ta | tb)
+        if jac < SIM_THRESHOLD:
+            continue
+        sim_cand[a].append((jac, b))
+        sim_cand[b].append((jac, a))
+
+_chosen = {}   # frozenset(pair) -> weight
+for vid in tagged:
+    for jac, other in sorted(sim_cand[vid], reverse=True)[:SIM_TOP_K]:
+        key = frozenset((vid, other))
+        _chosen[key] = max(_chosen.get(key, 0), round(jac, 4))
+
+video_video_edges = [(a, b, w) for (a, b), w in ((tuple(k), w) for k, w in _chosen.items())]
 
 print(f"✓ 生成 {len(video_video_edges)} 条视频-视频相似度关系")
 

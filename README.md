@@ -93,9 +93,12 @@ Algo_Project/
 │       ├── stores/               # Pinia auth store
 │       ├── router/               # Vue Router with auth guards
 │       └── api/                  # Axios client with Bearer interceptor
-├── scripts/                      # v1-era Python: data prep + algorithm prototypes
+├── scripts/                      # Data prep + algorithm prototypes (Python) + graph viz
+│   ├── make_graph_html.py        #   → standalone interactive graph.html (no backend/DB)
+│   ├── neo4j_import.cypher        #   Cypher import for Neo4j
+│   └── VISUALIZATION.md           #   How to visualize the nodes/edges
 ├── ProcessedData/
-│   ├── mini_nodes.csv            # 483 nodes (users + videos)
+│   ├── mini_nodes.csv            # 483 nodes (100 users + 383 videos)
 │   └── mini_edges.csv            # 945 edges
 └── doc/                          # Architecture, progress, and summary docs
 ```
@@ -136,7 +139,21 @@ All business endpoints require `Authorization: Bearer <token>`.
 
 ---
 
+## Visualize the Graph
+
+To **see the nodes and edges** (no backend or database needed — reads the CSV snapshot):
+
+```bash
+python3 scripts/make_graph_html.py   # generates a standalone scripts/graph.html
+open scripts/graph.html              # double-click to open in any browser
+```
+
+The page is self-contained and interactive (drag/zoom/hover, toggle edge types). A Neo4j import path is also available — see [scripts/VISUALIZATION.md](scripts/VISUALIZATION.md).
+
+---
+
 ## Documentation
 
 - [doc/PROJECT_SUMMARY.md](doc/PROJECT_SUMMARY.md) — Full architecture, algorithm explanations, API reference
+- [scripts/VISUALIZATION.md](scripts/VISUALIZATION.md) — Visualize the graph (standalone HTML / Neo4j)
 - [doc/PROGRESS.md](doc/PROGRESS.md) — Phase 4 task breakdown and milestone tracking
