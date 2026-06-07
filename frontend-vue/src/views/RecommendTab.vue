@@ -83,34 +83,6 @@ onMounted(load)
     </div>
 
     <div class="controls-section">
-      <div class="controls">
-        <div class="control-group">
-          <label>α (distance)</label>
-          <input type="range" min="0" max="1" step="0.05" v-model.number="alpha" />
-          <span class="value-tag">{{ alpha.toFixed(2) }}</span>
-        </div>
-        <div class="control-group">
-          <label>β (PageRank)</label>
-          <input type="range" min="0" max="1" step="0.05" v-model.number="beta" />
-          <span class="value-tag">{{ beta.toFixed(2) }}</span>
-        </div>
-        <div class="control-group">
-          <label>γ (popularity)</label>
-          <input type="range" min="0" max="1" step="0.05" v-model.number="gamma" />
-          <span class="value-tag">{{ gamma.toFixed(2) }}</span>
-        </div>
-        <div class="control-group">
-          <label>Mode</label>
-          <select v-model="prMode" style="width:160px">
-            <option value="full">Full-graph PageRank</option>
-            <option value="watch">Watch-based PageRank</option>
-          </select>
-        </div>
-        <button class="btn-primary" @click="load" :disabled="loading">
-          {{ loading ? 'Loading…' : 'Refresh' }}
-        </button>
-      </div>
-
       <div class="sort-bar">
         <span class="sort-label">Sort by:</span>
         <button 
