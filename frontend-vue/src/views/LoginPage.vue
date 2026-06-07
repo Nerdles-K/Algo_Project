@@ -79,25 +79,36 @@ async function submit() {
 .demo-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
   flex-wrap: wrap;
+  padding: var(--spacing-md);
+  background: rgba(83, 192, 240, 0.05);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent2);
 }
 .demo-label {
   font-size: 12px;
-  color: #888;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .demo-btn {
   font-size: 12px;
-  padding: 3px 10px;
-  border: 1px solid #555;
-  border-radius: 4px;
-  background: #2a2a2a;
-  color: #ccc;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface2);
+  color: var(--accent2);
   cursor: pointer;
+  transition: all var(--transition-base);
+  font-weight: 500;
 }
 .demo-btn:hover {
-  background: #3a3a3a;
-  color: #fff;
+  background: var(--accent2);
+  color: var(--bg);
+  border-color: var(--accent2);
+  transform: translateY(-2px);
 }
 </style>
