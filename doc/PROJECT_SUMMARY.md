@@ -78,14 +78,17 @@ Algo_Project/
 │           ├── LccTab.vue                    # 茧房检测（LCC）
 │           └── PageRankTab.vue               # PageRank 热度榜
 │
-├── scripts/                          ← 数据准备 + 算法原型 Python 脚本（v1 遗留，保留）
+├── scripts/                          ← 数据准备/算法原型脚本 + 图可视化工具
+│   ├── make_graph_html.py            #   读 CSV 生成独立交互式可视化 graph.html
+│   ├── neo4j_import.cypher           #   导入 Neo4j 的 Cypher 脚本
+│   └── VISUALIZATION.md              #   可视化使用说明（离线 HTML / Neo4j）
 │
 ├── Dataset/                          ← 原始数据集
 │   ├── archive/USvideos.csv          #   Kaggle YouTube Trending（美区）
 │   └── com-youtube.top5000.cmty.txt  #   SNAP YouTube 社区数据
 │
 ├── ProcessedData/                    ← 抽样后数据
-│   ├── mini_nodes.csv                #   500 节点（100用户 + 400视频）
+│   ├── mini_nodes.csv                #   483 节点（100用户 + 383视频，抽样500去重后）
 │   ├── mini_edges.csv                #   945 条边
 │   └── synchplay.db                  #   v1 SQLite 数据库（v2 用 PostgreSQL）
 │
@@ -456,7 +459,7 @@ Step 3: 统计共同视频数
 Step 4: 按共同数降序排列，排除自己，返回 Top N
 ```
 
-**时间复杂度**：O(user_out_degree × avg_video_in_degree)，500 节点规模即时完成。
+**时间复杂度**：O(user_out_degree × avg_video_in_degree)，483 节点规模即时完成。
 
 **好友关系持久化**：`POST /api/friends` 创建 social 边（同时写入 DB 和内存图），`DELETE /api/friends` 删除边。前端好友页同时显示已关注好友和推荐好友。
 
