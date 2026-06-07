@@ -1,55 +1,56 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import client from '../api/client'
-import VideoThumb from '../components/VideoThumb.vue'
-import { openVideo } from '../utils/video'
+import { ref, computed, onMounted } from "vue";
+import client from "../api/client";
+import VideoThumb from "../components/VideoThumb.vue";
+import { openVideo } from "../utils/video";
 
-const alpha = ref(0.5)
-const beta = ref(0.3)
-const gamma = ref(0.2)
-const prMode = ref('full')
-const top = ref(20)
-const loading = ref(false)
-const error = ref('')
-const result = ref(null)
-const failedIds = ref({})
-const sortBy = ref('score')
+const alpha = ref(0.5);
+const beta = ref(0.3);
+const gamma = ref(0.2);
+const prMode = ref("full");
+const top = ref(20);
+const loading = ref(false);
+const error = ref("");
+const result = ref(null);
+const failedIds = ref({});
+const sortBy = ref("score");
 
-const weightSum = computed(() => alpha.value + beta.value + gamma.value)
+const weightSum = computed(() => alpha.value + beta.value + gamma.value);
 const normalized = computed(() => {
-  const s = weightSum.value
-  if (s <= 0) return { a: 0, b: 0, g: 0 }
+  const s = weightSum.value;
+  if (s <= 0) return { a: 0, b: 0, g: 0 };
   return {
     a: (alpha.value / s).toFixed(2),
-    b: (beta.value  / s).toFixed(2),
+    b: (beta.value / s).toFixed(2),
     g: (gamma.value / s).toFixed(2),
-  }
-})
+  };
+});
 
 const visibleRecs = computed(() => {
-  const recs = result.value?.recommendations.filter(v => !failedIds.value[v.id]) ?? []
+  const recs =
+    result.value?.recommendations.filter((v) => !failedIds.value[v.id]) ?? [];
   const sorted = [...recs].sort((a, b) => {
-    if (sortBy.value === 'score') return b.finalScore - a.finalScore
-    if (sortBy.value === 'views') return Number(b.views) - Number(a.views)
-    if (sortBy.value === 'likes') return Number(b.likes) - Number(a.likes)
-    if (sortBy.value === 'recent') return 0
-    return 0
-  })
-  return sorted
-})
+    if (sortBy.value === "score") return b.finalScore - a.finalScore;
+    if (sortBy.value === "views") return Number(b.views) - Number(a.views);
+    if (sortBy.value === "likes") return Number(b.likes) - Number(a.likes);
+    if (sortBy.value === "recent") return 0;
+    return 0;
+  });
+  return sorted;
+});
 
 const avgScore = computed(() => {
-  if (visibleRecs.value.length === 0) return 0
-  const sum = visibleRecs.value.reduce((acc, v) => acc + v.finalScore, 0)
-  return (sum / visibleRecs.value.length).toFixed(3)
-})
+  if (visibleRecs.value.length === 0) return 0;
+  const sum = visibleRecs.value.reduce((acc, v) => acc + v.finalScore, 0);
+  return (sum / visibleRecs.value.length).toFixed(3);
+});
 
 async function load() {
-  loading.value = true
-  error.value = ''
-  failedIds.value = {}
+  loading.value = true;
+  error.value = "";
+  failedIds.value = {};
   try {
-    const res = await client.get('/api/recommend', {
+    const res = await client.get("/api/recommend", {
       params: {
         alpha: alpha.value,
         beta: beta.value,
@@ -57,20 +58,20 @@ async function load() {
         prMode: prMode.value,
         top: top.value,
       },
-    })
-    result.value = res.data
+    });
+    result.value = res.data;
   } catch (e) {
-    error.value = e.response?.data?.error || 'Failed to load recommendations'
+    error.value = e.response?.data?.error || "Failed to load recommendations";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function markFailed(id) {
-  failedIds.value = { ...failedIds.value, [id]: true }
+  failedIds.value = { ...failedIds.value, [id]: true };
 }
 
-onMounted(load)
+onMounted(load);
 </script>
 
 <template>
@@ -78,14 +79,16 @@ onMounted(load)
     <div class="recommend-header">
       <div>
         <h2>Video Recommendations</h2>
-        <p class="subtitle">Personalized picks based on your graph position and preferences</p>
+        <p class="subtitle">
+          Personalized picks based on your graph position and preferences
+        </p>
       </div>
     </div>
 
     <div class="controls-section">
       <div class="sort-bar">
         <span class="sort-label">Sort by:</span>
-        <button 
+        <button
           v-for="option in ['score', 'views', 'likes', 'recent']"
           :key="option"
           :class="['sort-btn', { active: sortBy === option }]"
@@ -103,7 +106,9 @@ onMounted(load)
       </div>
       <div class="summary-item">
         <span class="summary-label">Showing</span>
-        <span class="summary-value">{{ visibleRecs.length }}/{{ result.count }}</span>
+        <span class="summary-value"
+          >{{ visibleRecs.length }}/{{ result.count }}</span
+        >
       </div>
       <div class="summary-item">
         <span class="summary-label">Avg Score</span>
@@ -111,7 +116,9 @@ onMounted(load)
       </div>
     </div>
 
-    <div v-if="error" class="error-msg" style="margin-bottom:16px">{{ error }}</div>
+    <div v-if="error" class="error-msg" style="margin-bottom: 16px">
+      {{ error }}
+    </div>
     <div v-if="loading" class="loading">Loading recommendations…</div>
 
     <div v-if="result && !loading" class="cards-grid">
@@ -192,7 +199,7 @@ onMounted(load)
   margin: 0;
 }
 
-.control-group input[type=range] {
+.control-group input[type="range"] {
   width: 140px;
   accent-color: var(--accent2);
 }
