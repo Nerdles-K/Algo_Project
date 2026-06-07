@@ -581,10 +581,10 @@ public class Graph {
             }
 
             for (Edge edge : getOutEdges(current.nodeId)) {
-                relax(edge.getTarget().getNodeId(), current.distance + edge.getDynamicWeight(), dist, pq, maxDistance);
+                relax(edge.getTarget().getNodeId(), current.distance + edge.getWeight(), dist, pq, maxDistance);
             }
             for (Edge edge : getInEdges(current.nodeId)) {
-                relax(edge.getSource().getNodeId(), current.distance + edge.getDynamicWeight(), dist, pq, maxDistance);
+                relax(edge.getSource().getNodeId(), current.distance + edge.getWeight(), dist, pq, maxDistance);
             }
         }
         return videoDistances;
