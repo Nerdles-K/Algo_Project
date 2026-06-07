@@ -25,6 +25,10 @@ public class Edge {
         return this.weight * Math.exp(-lambda * deltaTime);
     }
     
+    public double getWeight(){
+        return weight;
+    }
+    
     public Node getSource() {
         return source;
     }
