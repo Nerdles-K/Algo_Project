@@ -13,7 +13,6 @@ function logout() {
 }
 
 const tabs = [
-  { path: '/app/recommend', label: 'Recommend' },
   { path: '/app/friends', label: 'Friends' },
   { path: '/app/overview', label: 'Overview' },
   { path: '/app/lcc', label: 'Echo Chamber' },
