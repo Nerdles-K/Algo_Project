@@ -40,11 +40,7 @@ public class Edge {
     public String getEdgeType() {
         return edgeType;
     }
-
-    public double getWeight() {
-        return weight;
-    }
-
+    
     public void setWeight(double weight) {
         this.weight = weight;
     }
