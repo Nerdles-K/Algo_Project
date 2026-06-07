@@ -103,7 +103,7 @@ def read_db_source():
         "password": os.environ.get("DB_PASSWORD", "synchplay_dev"),
     }
     node_rows = _psql_csv(psql, conn,
-        "SELECT node_id, node_type, original_id, display_name, channel, views, likes FROM nodes")
+        "SELECT node_id, node_type, original_id, display_name, channel, views, likes, tags FROM nodes")
     edge_rows = _psql_csv(psql, conn,
         "SELECT src AS source, dst AS target, edge_type, weight FROM edges")
     accounts = _psql_csv(psql, conn,
@@ -138,9 +138,12 @@ def build_nodes(node_rows, acc_map):
                           "group": "user", "color": USER_COLOR}
         else:
             short = name[:22] + ("…" if len(name) > 22 else "")
-            nodes[nid] = {"id": nid, "label": short,
-                          "title": (f"<b>Video</b><br>{name}<br>Channel: {row.get('channel','')}"
-                                    f"<br>Views: {row.get('views','')} · Likes: {row.get('likes','')}"),
+            tags = (row.get("tags") or "").replace("|", ", ")
+            title = (f"<b>Video</b><br>{name}<br>Channel: {row.get('channel','')}"
+                     f"<br>Views: {row.get('views','')} · Likes: {row.get('likes','')}")
+            if tags:
+                title += f"<br>Tags: {tags}"
+            nodes[nid] = {"id": nid, "label": short, "title": title,
                           "group": "video", "color": VIDEO_COLOR}
     return nodes
 
@@ -295,8 +298,20 @@ TEMPLATE = r"""<!DOCTYPE html>
   function activeTypes(){
     return new Set([...document.querySelectorAll('input[data-e]:checked')].map(x=>x.dataset.e));
   }
+  // tooltip 以 HTML 元素传入，否则 vis 会把 <br>/<b> 当纯文本原样显示
+  function htmlTitle(html){
+    const d = document.createElement('div');
+    d.style.maxWidth = '320px';
+    d.style.whiteSpace = 'normal';
+    d.innerHTML = html;
+    return d;
+  }
   function addNode(id){
-    if (NODE_DB[id] && !nodes.get(id)) nodes.add(Object.assign({}, NODE_DB[id]));
+    if (NODE_DB[id] && !nodes.get(id)){
+      const n = Object.assign({}, NODE_DB[id]);
+      n.title = htmlTitle(n.title);
+      nodes.add(n);
+    }
   }
   function addEdge(i){
     const e = EDGE_DB[i];

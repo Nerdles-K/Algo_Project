@@ -59,7 +59,8 @@ public class DataImportService implements CommandLineRunner {
             if (header == null) throw new IllegalStateException("Empty nodes CSV: " + nodesCsv);
             String line;
             while ((line = br.readLine()) != null) {
-                String[] f = splitCsv(line, 7);
+                // tags is an optional 8th column (added in V5); older CSVs without it still import
+                String[] f = splitCsv(line, 8);
                 String nodeId      = f[0];
                 String nodeType    = f[1];
                 String originalId  = f[2];
@@ -67,15 +68,16 @@ public class DataImportService implements CommandLineRunner {
                 String channel     = f[4];
                 Long   views       = parseLongOrNull(f[5]);
                 Long   likes       = parseLongOrNull(f[6]);
-                batch.add(new Object[]{nodeId, nodeType, originalId, displayName, channel, views, likes});
+                String tags        = f[7].isEmpty() ? null : f[7];
+                batch.add(new Object[]{nodeId, nodeType, originalId, displayName, channel, views, likes, tags});
             }
         } catch (IOException ex) {
             throw new RuntimeException("Failed to read nodes CSV: " + nodesCsv, ex);
         }
         // INSERT ... ON CONFLICT DO NOTHING — collapses the 500→483 dedup the v1 in-memory loader does
         jdbc.batchUpdate(
-            "INSERT INTO nodes(node_id, node_type, original_id, display_name, channel, views, likes) " +
-            "VALUES (?,?,?,?,?,?,?) ON CONFLICT (node_id) DO NOTHING",
+            "INSERT INTO nodes(node_id, node_type, original_id, display_name, channel, views, likes, tags) " +
+            "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT (node_id) DO NOTHING",
             batch);
         log.info("Imported {} node rows from CSV (after dedup, in-DB count = SELECT COUNT(*))", batch.size());
     }

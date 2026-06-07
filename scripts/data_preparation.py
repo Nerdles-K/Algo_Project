@@ -128,23 +128,48 @@ for user_id in sampled_users:
 print(f"✓ 生成 {len(user_video_edges)} 条用户-视频交互关系")
 
 # ============================================================================
-# 第四步：生成视频-视频相似度边（基于标签重叠 Jaccard）
-# 两视频共享标签数 ≥ MIN_SHARED 且 Jaccard ≥ SIM_THRESHOLD 才连边；
-# 每个视频最多保留 SIM_TOP_K 条最相似的边；边权 = Jaccard 分数（有梯度）。
-# 比"同频道"更能反映内容相似：跨频道同题材也能连上，且覆盖更广。
+# 第四步：生成视频-视频相似度边（清洗后标签的 Jaccard）
+# 标签清洗：丢掉只被 1 个频道用过的标签（创作者噪声）+ 含频道名的标签，只留题材标签。
+# 相似度：共享清洗后标签 ≥ MIN_SHARED 且 Jaccard ≥ SIM_THRESHOLD 才连边；
+# 每视频最多 SIM_TOP_K 条；边权 = Jaccard（有梯度）。比"同频道"更能反映内容相似。
 # ============================================================================
 print("\n[第4步] 生成视频-视频相似度关系（标签 Jaccard）...")
 
-SIM_THRESHOLD = 0.05   # Jaccard 下限
-MIN_SHARED = 2         # 至少共享的标签数
-SIM_TOP_K = 10         # 每个视频最多保留的相似边
+import re as _re
+SIM_THRESHOLD = 0.1    # Jaccard 下限
+MIN_SHARED = 2         # 至少共享的(清洗后)标签数
+SIM_TOP_K = 8          # 每个视频最多保留的相似边
+MIN_CHANNELS = 2       # 标签至少被多少个不同频道使用才保留
 
 def _parse_tags(t):
     if not t or t == '[none]':
         return set()
     return {x.strip().strip('"').lower() for x in t.split('|') if x.strip().strip('"')}
 
-video_tags = {v['video_id']: _parse_tags(v['tags']) for v in sampled_videos}
+_raw_tags = {v['video_id']: _parse_tags(v['tags']) for v in sampled_videos}
+_vid_channel = {v['video_id']: v['channel'] for v in sampled_videos}
+
+# 每个标签被多少个不同频道使用
+_tag_channels = defaultdict(set)
+for _vid, _ts in _raw_tags.items():
+    for _t in _ts:
+        _tag_channels[_t].add(_vid_channel[_vid])
+
+def _clean_tags(tags, channel):
+    ch = channel.lower(); ch_ns = ch.replace(' ', '')
+    ch_tok = {w for w in _re.split(r'\W+', ch) if len(w) >= 3}
+    out = set()
+    for t in tags:
+        if len(_tag_channels[t]) < MIN_CHANNELS:      # 频道独占 → 创作者噪声
+            continue
+        if ch_ns and ch_ns in t.replace(' ', ''):     # 含频道全名
+            continue
+        if {w for w in _re.split(r'\W+', t) if w} & ch_tok:  # 含频道名词
+            continue
+        out.add(t)
+    return out
+
+video_tags = {vid: _clean_tags(_raw_tags[vid], _vid_channel[vid]) for vid in _raw_tags}
 tagged = [vid for vid, tg in video_tags.items() if tg]
 
 sim_cand = defaultdict(list)   # video_id -> [(score, other)]
@@ -197,12 +222,13 @@ for video in sampled_videos:
         'channel': video['channel'],
         'views': video['views'],
         'likes': video['likes'],
+        'tags': '|'.join(sorted(video_tags.get(video['video_id'], set()))),
     })
 
 # 写入节点CSV
 with open(MINI_NODES_FILE, 'w', newline='', encoding='utf-8') as f:
     # 先获取所有可能的字段名
-    fieldnames = ['node_id', 'node_type', 'original_id', 'display_name', 'channel', 'views', 'likes']
+    fieldnames = ['node_id', 'node_type', 'original_id', 'display_name', 'channel', 'views', 'likes', 'tags']
     
     writer = csv.DictWriter(f, fieldnames=fieldnames, restval='')
     writer.writeheader()
