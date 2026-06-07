@@ -122,7 +122,6 @@ onMounted(load)
             <span class="dist-badge">dist: {{ v.distance }}</span>
             <span class="pop-badge">pop: {{ v.popularityScore.toFixed(3) }}</span>
           </div>
-          <div class="score">score: {{ v.finalScore.toFixed(4) }}</div>
         </div>
       </div>
     </div>
