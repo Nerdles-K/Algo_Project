@@ -63,7 +63,7 @@ class GraphTest {
         Node n = new Node(id, "video", id.substring(1), "Video " + id);
         n.setAttribute("views", String.valueOf(views));
         n.setAttribute("likes", String.valueOf(likes));
-        n.setAttribute("topic", topic);
+        n.setAttribute("tags", topic);
         return n;
     }
 
@@ -161,26 +161,27 @@ class GraphTest {
     }
 
     @Test
-    @DisplayName("综合茧房分数：uA社交封闭度高，分数在0.3-0.7之间")
+    @DisplayName("综合茧房分数：uA社交三角全连+单一主题观看，属高茧房(>=0.7)；孤立用户uD与视频节点为0")
     void computeCocoonScore() {
-        // 修正：uA的实际分数≈0.3，所以断言范围改为0.3-0.7
+        // uA: 社交邻居 uB/uC 互相连接(LCC=1.0) + 只看娱乐(多样性=0) → 高茧房
         double scoreA = graph.computeCocoonScore("uA");
-        assertTrue(scoreA >= 0.3 && scoreA <= 0.7,
-                "uA中度茧房，分数应在0.3-0.7之间，实际值：" + scoreA);
+        assertTrue(scoreA >= 0.7 && scoreA <= 1.0,
+                "uA高茧房，分数应在0.7-1.0之间，实际值：" + scoreA);
 
+        // uD: 无社交邻居、无观看、无可达候选 → 无信号 → 0
         double scoreD = graph.computeCocoonScore("uD");
         assertEquals(0.0, scoreD, 1e-9);
 
+        // 视频节点不是用户 → 0
         double scoreV1 = graph.computeCocoonScore("v1");
         assertEquals(0.0, scoreV1, 1e-9);
     }
 
     @Test
-    @DisplayName("茧房等级：uA是medium，uD是low")
+    @DisplayName("茧房等级：uA是high，uD是low")
     void getCocoonLevel() {
-        // 修正：uA分数≈0.3，属于medium等级
         String levelA = graph.getCocoonLevel("uA");
-        assertEquals("medium", levelA);
+        assertEquals("high", levelA);
 
         String levelD = graph.getCocoonLevel("uD");
         assertEquals("low", levelD);

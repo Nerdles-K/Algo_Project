@@ -378,38 +378,39 @@ public class Graph {
             return 0.0;
         }
 
-        // 1. 获取用户观看过的所有视频（watch边）
-        Map<String, Integer> topicCount = new HashMap<>();
-        int totalWatched = 0;
+        // 1. 统计用户观看过的视频的标签分布（watch 边 → 视频的 tags，"|" 分隔，可多值）
+        Map<String, Integer> tagCount = new HashMap<>();
+        int totalTags = 0;
         for (Edge edge : getOutEdges(userId)) {
             if ("watch".equals(edge.getEdgeType()) && edge.getTarget().isVideo()) {
-                Node video = edge.getTarget();
-                String topic = video.getAttribute("topic"); // 视频节点需有topic属性（如"体育"/"娱乐"）
-                if (topic == null || topic.isEmpty()) {
-                    topic = "unknown";
+                String tags = edge.getTarget().getAttribute("tags");
+                if (tags == null || tags.isEmpty()) continue;
+                for (String tag : tags.split("\\|")) {
+                    tag = tag.trim();
+                    if (tag.isEmpty()) continue;
+                    tagCount.merge(tag, 1, Integer::sum);
+                    totalTags++;
                 }
-                topicCount.put(topic, topicCount.getOrDefault(topic, 0) + 1);
-                totalWatched++;
             }
         }
 
-        if (totalWatched == 0) {
-            return 0.0; // 无观看记录，熵值为0
+        if (totalTags == 0) {
+            return 0.0; // 无观看记录 / 无标签，熵值为0
         }
 
         // 2. 计算信息熵 H = -Σ(p_i * log2(p_i))
         double entropy = 0.0;
-        for (int count : topicCount.values()) {
-            double p = (double) count / totalWatched;
+        for (int count : tagCount.values()) {
+            double p = (double) count / totalTags;
             entropy -= p * (Math.log(p) / Math.log(2)); // 以2为底的对数
         }
 
-        // 3. 归一化到 [0,1]（熵的最大值为log2(主题数)）
-        int topicTypeCount = topicCount.size();
-        if (topicTypeCount <= 1) {
+        // 3. 归一化到 [0,1]（熵的最大值为 log2(标签种类数)）
+        int distinctTags = tagCount.size();
+        if (distinctTags <= 1) {
             return 0.0;
         }
-        double maxEntropy = Math.log(topicTypeCount) / Math.log(2);
+        double maxEntropy = Math.log(distinctTags) / Math.log(2);
         return entropy / maxEntropy;
     }
 
@@ -419,8 +420,8 @@ public class Graph {
             return 0.0;
         }
 
-        // 1. 获取用户的候选推荐视频（BFS 2-hop）
-        List<Node> candidateVideos = findCandidateVideosByBFS(userId, 2);
+        // 1. 获取用户的候选推荐视频（Dijkstra 可达，与推荐召回口径一致）
+        Map<String, Double> candidateVideos = dijkstraVideoDistance(userId, DEFAULT_MAX_DISTANCE);
         if (candidateVideos.isEmpty()) {
             return 0.0;
         }
@@ -428,11 +429,11 @@ public class Graph {
         // 2. 获取候选视频的Watch-Based PageRank
         Map<String, Double> prScores = computeWatchBasedPageRank(0.85, 50, 1e-6);
 
-        // 3. 计算PR分数的方差（方差越小 → 分数越集中 → 同质化越高）
+        // 3. 计算PR分数的方差
         double sum = 0.0, sumSquare = 0.0;
         int validCount = 0;
-        for (Node video : candidateVideos) {
-            double pr = prScores.getOrDefault(video.getNodeId(), 0.0);
+        for (String videoId : candidateVideos.keySet()) {
+            double pr = prScores.getOrDefault(videoId, 0.0);
             sum += pr;
             sumSquare += pr * pr;
             validCount++;
@@ -445,28 +446,74 @@ public class Graph {
         double mean = sum / validCount;
         double variance = (sumSquare / validCount) - (mean * mean);
 
-        // 4. 归一化方差到 [0,1]，作为集中度分数
+        // 4. 集中度 = 1 - 归一化方差：方差越小 → 分数越集中 → 同质化越高 → 集中度越接近 1
         double maxVariance = 0.1; // 经验值，可根据实际数据调整
-        return Math.min(variance / maxVariance, 1.0);
+        return 1.0 - Math.min(variance / maxVariance, 1.0);
     }
 
     public double computeCocoonScore(String userId) {
-        // 1. 获取三个核心指标
-        double lcc = computeLocalClusteringCoefficient(userId); // 社交封闭度（0-1）
-        double topicEntropy = computeWatchTopicEntropy(userId); // 内容多样性（0-1）
-        double prConcentration = computePRConcentration(userId); // 内容集中度（0-1）
+        Node user = getNode(userId);
+        if (user == null || !user.isUser()) {
+            return 0.0;
+        }
 
-        // 2. 加权融合（权重可根据业务调整）
-        double socialWeight = 0.4;    // 社交封闭度权重
-        double contentDiversityWeight = 0.3; // 内容多样性权重（取反，因为熵越高茧房越弱）
-        double contentConcentrationWeight = 0.3; // 内容集中度权重
+        // 加权融合三个信号，但只计入"有数据"的信号、再按已计入权重归一化。
+        // 否则缺失信号（如无观看历史的用户）会被 (1-熵)=1 误判为高茧房。
+        final double socialWeight = 0.4;        // 社交封闭度
+        final double diversityWeight = 0.3;     // 内容多样性（取反：熵越高茧房越弱）
+        final double concentrationWeight = 0.3; // 候选内容集中度
 
-        double cocoonScore = (socialWeight * lcc) +
-                             (contentDiversityWeight * (1 - topicEntropy)) +
-                             (contentConcentrationWeight * prConcentration);
+        double weightedSum = 0.0;
+        double totalWeight = 0.0;
 
-        // 3. 限制分数在0-1之间
-        return Math.max(0.0, Math.min(1.0, cocoonScore));
+        // 1. 社交封闭度（LCC）—— 需要至少 2 个社交邻居才有意义
+        if (countSocialNeighbors(userId) >= 2) {
+            weightedSum += socialWeight * computeLocalClusteringCoefficient(userId);
+            totalWeight += socialWeight;
+        }
+
+        // 2. 内容多样性 —— 仅当用户有观看历史
+        if (hasWatchHistory(userId)) {
+            weightedSum += diversityWeight * (1.0 - computeWatchTopicEntropy(userId));
+            totalWeight += diversityWeight;
+        }
+
+        // 3. 候选内容集中度 —— 仅当存在可达候选视频
+        if (!dijkstraVideoDistance(userId, DEFAULT_MAX_DISTANCE).isEmpty()) {
+            weightedSum += concentrationWeight * computePRConcentration(userId);
+            totalWeight += concentrationWeight;
+        }
+
+        if (totalWeight == 0.0) {
+            return 0.0; // 无任何信号（孤立用户）→ 无法判定茧房
+        }
+        return Math.max(0.0, Math.min(1.0, weightedSum / totalWeight));
+    }
+
+    /** 该用户通过 social 边连接的其他用户数（无向）。 */
+    private int countSocialNeighbors(String userNodeId) {
+        Set<String> neighbors = new HashSet<>();
+        for (Edge edge : getOutEdges(userNodeId)) {
+            if ("social".equals(edge.getEdgeType()) && edge.getTarget().isUser()) {
+                neighbors.add(edge.getTarget().getNodeId());
+            }
+        }
+        for (Edge edge : getInEdges(userNodeId)) {
+            if ("social".equals(edge.getEdgeType()) && edge.getSource().isUser()) {
+                neighbors.add(edge.getSource().getNodeId());
+            }
+        }
+        return neighbors.size();
+    }
+
+    /** 该用户是否有 watch 出边（观看历史）。 */
+    private boolean hasWatchHistory(String userNodeId) {
+        for (Edge edge : getOutEdges(userNodeId)) {
+            if ("watch".equals(edge.getEdgeType()) && edge.getTarget().isVideo()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public String getCocoonLevel(String userId) {
