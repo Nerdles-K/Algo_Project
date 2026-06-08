@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted } from "vue";
 import client from "../api/client";
 import VideoThumb from "../components/VideoThumb.vue";
@@ -131,11 +131,8 @@ onMounted(load);
         </div>
         <div class="card-body">
           <div class="card-header">
-            <div class="avatar">{{ v.channel.charAt(0).toUpperCase() }}</div>
-            <div class="card-info">
-              <div class="title">{{ v.title }}</div>
-              <div class="channel">{{ v.channel }}</div>
-            </div>
+            <div class="title">{{ v.title }}</div>
+            <div class="channel">{{ v.channel }}</div>
           </div>
           <div class="meta">
             <span>👁 {{ Number(v.views).toLocaleString() }}</span>
@@ -291,28 +288,7 @@ onMounted(load);
 }
 
 .card-header {
-  display: flex;
-  gap: 12px;
   margin-bottom: 12px;
-  align-items: flex-start;
-}
-
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent2), #2b9fd9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.card-info {
-  flex: 1;
 }
 
 .title {
