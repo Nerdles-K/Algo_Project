@@ -216,12 +216,12 @@ onMounted(load)
       </MotionDiv>
     </AnimatePresence>
 
-    <div v-if="loading && !result" class="loading-state">
+    <div v-if="loading" class="loading-state">
       <div class="spinner-ring" />
-      <p>Loading your network…</p>
+      <p>{{ result ? 'Refreshing your network…' : 'Loading your network…' }}</p>
     </div>
 
-    <div v-else-if="result" class="friends-grid" :class="{ 'is-refreshing': loading }">
+    <div v-else-if="result" class="friends-grid">
       <!-- Left column: Your Friends -->
       <section class="column column-left">
         <div class="section-head">
@@ -525,12 +525,6 @@ onMounted(load)
   animation: spin 0.8s linear infinite;
 }
 
-.friends-grid.is-refreshing {
-  opacity: 0.55;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
 /* Toasts */
 .toast {
   padding: 10px 16px;
@@ -553,9 +547,19 @@ onMounted(load)
 
 /* Loading */
 .loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
   text-align: center;
-  padding: 64px 0;
+  padding: 64px 24px;
   color: var(--text-dim);
+}
+
+.loading-state p {
+  margin: 0;
+  font-size: 15px;
 }
 
 .spinner-ring {
