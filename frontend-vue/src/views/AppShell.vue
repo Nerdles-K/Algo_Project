@@ -32,18 +32,20 @@ const visibleTabs = tabs.filter(tab => !tab.adminOnly || auth.isAdmin)
         <span>SynchPlay</span>
       </router-link>
 
-      <div class="tabs">
-        <router-link
-          v-for="tab in visibleTabs"
-          :key="tab.path"
-          :to="tab.path"
-          :class="['tab-link', { active: route.path === tab.path }]"
-        >{{ tab.label }}</router-link>
-      </div>
+      <div class="nav-right">
+        <div class="tabs">
+          <router-link
+            v-for="tab in visibleTabs"
+            :key="tab.path"
+            :to="tab.path"
+            :class="['tab-link', { active: route.path === tab.path }]"
+          >{{ tab.label }}</router-link>
+        </div>
 
-      <div class="user-section">
-        <span class="username">{{ auth.currentUser?.username }}</span>
-        <button type="button" class="logout-btn" @click="handleLogout">Logout</button>
+        <div class="user-section">
+          <span class="username">{{ auth.currentUser?.username }}</span>
+          <button type="button" class="logout-btn" @click="handleLogout">Logout</button>
+        </div>
       </div>
     </nav>
     <main class="main-content">
