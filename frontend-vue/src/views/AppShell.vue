@@ -25,7 +25,7 @@ const tabs = [
 <template>
   <div class="shell">
     <nav class="topnav">
-      <span class="brand">SynchPlay</span>
+      <router-link to="/app/recommend" class="brand" style="text-decoration:none;cursor:pointer">SynchPlay</router-link>
       <div class="tabs">
         <router-link
           v-for="tab in tabs"
