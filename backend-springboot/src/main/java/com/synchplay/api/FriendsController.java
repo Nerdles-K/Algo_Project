@@ -1,4 +1,4 @@
-﻿package com.synchplay.api;
+package com.synchplay.api;
 
 import com.synchplay.auth.AppUser;
 import com.synchplay.domain.Edge;
