@@ -1,10 +1,16 @@
 ﻿<script setup>
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import VideoModal from '../components/VideoModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
+
+function handleLogout() {
+  auth.logout()
+  router.push('/login')
+}
 
 const tabs = [
   { path: '/app/friends', label: 'Friends' },
@@ -33,6 +39,11 @@ const visibleTabs = tabs.filter(tab => !tab.adminOnly || auth.isAdmin)
           :to="tab.path"
           :class="['tab-link', { active: route.path === tab.path }]"
         >{{ tab.label }}</router-link>
+      </div>
+
+      <div class="user-section">
+        <span class="username">{{ auth.currentUser?.username }}</span>
+        <button type="button" class="logout-btn" @click="handleLogout">Logout</button>
       </div>
     </nav>
     <main class="main-content">

@@ -213,6 +213,36 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; display: bl
   border-bottom-color: var(--accent2);
 }
 
+.topnav .user-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.topnav .username {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.topnav .logout-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.topnav .logout-btn:hover {
+  background: #1a4a7a;
+}
+
 .main-content { flex: 1; padding: 28px 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
 
 /* Controls bar */
