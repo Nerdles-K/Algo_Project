@@ -505,15 +505,21 @@ public class Graph {
         if (maxPR <= 0) maxPR = 1.0;
 
         // Popularity：用 log 尺度归一化，避免极端 viral 视频垄断
+        // 同时记录最小距离 → 用于把 distanceScore 也归一化到 0~1，
+        // 与 normalizedPR / popularity 同量纲（否则 distanceScore 可达 ~100，量级失衡）。
         double maxLogViews = 0.0, maxLogLikes = 0.0;
+        double minDistance = Double.POSITIVE_INFINITY;
         for (String vid : videoDistanceMap.keySet()) {
             Node v = getNode(vid);
             if (v == null) continue;
             maxLogViews = Math.max(maxLogViews, Math.log1p(parseLongAttr(v, "views")));
             maxLogLikes = Math.max(maxLogLikes, Math.log1p(parseLongAttr(v, "likes")));
+            minDistance = Math.min(minDistance, videoDistanceMap.get(vid));
         }
         if (maxLogViews <= 0) maxLogViews = 1.0;
         if (maxLogLikes <= 0) maxLogLikes = 1.0;
+        // 最近视频的 distanceScore 作为归一化分母（最近视频归一化后 = 1.0）
+        double maxDistanceScore = 1.0 / Math.max(minDistance, 0.01);
 
         // 权重归一化（α+β+γ=1）
         double sum = alpha + beta + gamma;
@@ -537,7 +543,8 @@ public class Graph {
             double popularity = 0.6 * (Math.log1p(views) / maxLogViews)
                               + 0.4 * (Math.log1p(likes) / maxLogLikes);
 
-            double distanceScore = 1.0 / Math.max(distance, 0.01);
+            // 归一化到 0~1：最近的视频 = 1.0，越远越接近 0（= minDistance / distance）
+            double distanceScore = (1.0 / Math.max(distance, 0.01)) / maxDistanceScore;
             double finalScore = aN * distanceScore + bN * normalizedPR + gN * popularity;
 
             results.add(new VideoScore(videoNode, distance, prScore, popularity, finalScore));
@@ -581,10 +588,10 @@ public class Graph {
             }
 
             for (Edge edge : getOutEdges(current.nodeId)) {
-                relax(edge.getTarget().getNodeId(), current.distance + edge.getDynamicWeight(), dist, pq, maxDistance);
+                relax(edge.getTarget().getNodeId(), current.distance + edge.getWeight(), dist, pq, maxDistance);
             }
             for (Edge edge : getInEdges(current.nodeId)) {
-                relax(edge.getSource().getNodeId(), current.distance + edge.getDynamicWeight(), dist, pq, maxDistance);
+                relax(edge.getSource().getNodeId(), current.distance + edge.getWeight(), dist, pq, maxDistance);
             }
         }
         return videoDistances;
