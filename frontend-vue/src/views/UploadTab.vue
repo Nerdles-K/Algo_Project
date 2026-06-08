@@ -112,8 +112,11 @@ onMounted(loadMine)
 
       <div v-if="mode === 'file'" class="form-group">
         <label>Video file <span style="color:var(--accent)">*</span></label>
-        <input type="file" accept="video/*" @change="onFilePick" />
-        <div v-if="fileName" style="font-size:12px;color:var(--text-dim);margin-top:4px">{{ fileName }}</div>
+        <div class="file-picker">
+          <input id="video-file" class="file-input-hidden" type="file" accept="video/*" @change="onFilePick" />
+          <label for="video-file" class="file-btn">Choose file</label>
+          <span class="file-name">{{ fileName || 'No file selected' }}</span>
+        </div>
       </div>
       <div v-else class="form-group">
         <label>YouTube link or video id <span style="color:var(--accent)">*</span></label>
@@ -183,6 +186,21 @@ onMounted(loadMine)
   border: 1px solid var(--border, #1f2a3d); border-radius: 8px;
 }
 .mode-btn.active { color: var(--text, #e6edf6); border-color: var(--accent, #5b8cff); }
+.file-picker { display: flex; align-items: center; gap: 10px; }
+.file-input-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.file-btn {
+  cursor: pointer; padding: 7px 14px; font-size: 13px; white-space: nowrap;
+  background: var(--surface2, #0e1420); color: var(--text, #e6edf6);
+  border: 1px solid var(--border, #1f2a3d); border-radius: 8px;
+}
+.file-btn:hover { border-color: var(--accent, #5b8cff); }
+.file-name {
+  font-size: 12px; color: var(--text-dim, #8aa0bd);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .native-badge {
   display: inline-block; font-size: 9px; letter-spacing: .04em; text-transform: uppercase;
   color: var(--accent, #5b8cff); border: 1px solid var(--border, #1f2a3d);
