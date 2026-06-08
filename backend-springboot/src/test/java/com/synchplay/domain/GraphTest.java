@@ -63,7 +63,7 @@ class GraphTest {
         Node n = new Node(id, "video", id.substring(1), "Video " + id);
         n.setAttribute("views", String.valueOf(views));
         n.setAttribute("likes", String.valueOf(likes));
-        n.setAttribute("tags", topic);
+        n.setAttribute("category", topic);
         return n;
     }
 

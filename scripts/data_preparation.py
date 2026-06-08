@@ -11,6 +11,7 @@
 """
 
 import csv
+import json
 import random
 import os
 from collections import defaultdict
@@ -22,7 +23,12 @@ random.seed(42)
 DATASET_DIR = "Dataset"
 CMTY_FILE = os.path.join(DATASET_DIR, "com-youtube.top5000.cmty.txt")
 VIDEO_FILE = os.path.join(DATASET_DIR, "archive/USvideos.csv")
+CATEGORY_FILE = os.path.join(DATASET_DIR, "archive/US_category_id.json")
 OUTPUT_DIR = "ProcessedData"
+
+# category_id -> 类别名（如 10 -> Music）
+with open(CATEGORY_FILE, encoding="utf-8") as _cf:
+    CATEGORY_MAP = {it["id"]: it["snippet"]["title"] for it in json.load(_cf)["items"]}
 
 # 创建输出目录
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -94,6 +100,7 @@ try:
                 'dislikes': int(row['dislikes']),
                 'comment_count': int(row['comment_count']),
                 'publish_time': row['publish_time'],
+                'category': CATEGORY_MAP.get(row.get('category_id', ''), 'Unknown'),
                 'tags': row.get('tags', ''),   # 用于标签相似度
             })
     
@@ -223,12 +230,14 @@ for video in sampled_videos:
         'views': video['views'],
         'likes': video['likes'],
         'tags': '|'.join(sorted(video_tags.get(video['video_id'], set()))),
+        'category': video['category'],
+        'published_at': video['publish_time'],
     })
 
 # 写入节点CSV
 with open(MINI_NODES_FILE, 'w', newline='', encoding='utf-8') as f:
     # 先获取所有可能的字段名
-    fieldnames = ['node_id', 'node_type', 'original_id', 'display_name', 'channel', 'views', 'likes', 'tags']
+    fieldnames = ['node_id', 'node_type', 'original_id', 'display_name', 'channel', 'views', 'likes', 'tags', 'category', 'published_at']
     
     writer = csv.DictWriter(f, fieldnames=fieldnames, restval='')
     writer.writeheader()

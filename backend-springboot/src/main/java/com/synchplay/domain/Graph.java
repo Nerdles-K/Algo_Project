@@ -378,39 +378,36 @@ public class Graph {
             return 0.0;
         }
 
-        // 1. 统计用户观看过的视频的标签分布（watch 边 → 视频的 tags，"|" 分隔，可多值）
-        Map<String, Integer> tagCount = new HashMap<>();
-        int totalTags = 0;
+        // 1. 统计用户观看过的视频的主题类别分布（watch 边 → 视频的 category，每视频一个类别，
+        //    如 Music/Sports/News，由 USvideos 的 category_id 映射而来——比细碎 tags 更能反映"题材"）
+        Map<String, Integer> categoryCount = new HashMap<>();
+        int totalWatched = 0;
         for (Edge edge : getOutEdges(userId)) {
             if ("watch".equals(edge.getEdgeType()) && edge.getTarget().isVideo()) {
-                String tags = edge.getTarget().getAttribute("tags");
-                if (tags == null || tags.isEmpty()) continue;
-                for (String tag : tags.split("\\|")) {
-                    tag = tag.trim();
-                    if (tag.isEmpty()) continue;
-                    tagCount.merge(tag, 1, Integer::sum);
-                    totalTags++;
-                }
+                String category = edge.getTarget().getAttribute("category");
+                if (category == null || category.isEmpty()) continue;
+                categoryCount.merge(category, 1, Integer::sum);
+                totalWatched++;
             }
         }
 
-        if (totalTags == 0) {
-            return 0.0; // 无观看记录 / 无标签，熵值为0
+        if (totalWatched == 0) {
+            return 0.0; // 无观看记录 / 无类别，熵值为0
         }
 
         // 2. 计算信息熵 H = -Σ(p_i * log2(p_i))
         double entropy = 0.0;
-        for (int count : tagCount.values()) {
-            double p = (double) count / totalTags;
+        for (int count : categoryCount.values()) {
+            double p = (double) count / totalWatched;
             entropy -= p * (Math.log(p) / Math.log(2)); // 以2为底的对数
         }
 
-        // 3. 归一化到 [0,1]（熵的最大值为 log2(标签种类数)）
-        int distinctTags = tagCount.size();
-        if (distinctTags <= 1) {
+        // 3. 归一化到 [0,1]（熵的最大值为 log2(类别种类数)）
+        int distinctCategories = categoryCount.size();
+        if (distinctCategories <= 1) {
             return 0.0;
         }
-        double maxEntropy = Math.log(distinctTags) / Math.log(2);
+        double maxEntropy = Math.log(distinctCategories) / Math.log(2);
         return entropy / maxEntropy;
     }
 

@@ -38,7 +38,7 @@ public class GraphService {
         long t0 = System.currentTimeMillis();
 
         jdbc.query("SELECT node_id, node_type, original_id, display_name, channel, views, likes, " +
-                   "source, media_path, thumb_path, tags FROM nodes",
+                   "source, media_path, thumb_path, tags, category, published_at FROM nodes",
             rs -> {
                 Node n = new Node(
                     rs.getString("node_id"),
@@ -59,6 +59,10 @@ public class GraphService {
                 if (thumbPath != null) n.setAttribute("thumbPath", thumbPath);
                 String tags = rs.getString("tags");
                 if (tags != null && !tags.isEmpty()) n.setAttribute("tags", tags);
+                String category = rs.getString("category");
+                if (category != null && !category.isEmpty()) n.setAttribute("category", category);
+                java.sql.Timestamp publishedAt = rs.getTimestamp("published_at");
+                if (publishedAt != null) n.setAttribute("publishedAt", publishedAt.toInstant().toString());
                 graph.addNode(n);
             });
 

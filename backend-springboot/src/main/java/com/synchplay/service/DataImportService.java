@@ -59,8 +59,9 @@ public class DataImportService implements CommandLineRunner {
             if (header == null) throw new IllegalStateException("Empty nodes CSV: " + nodesCsv);
             String line;
             while ((line = br.readLine()) != null) {
-                // tags is an optional 8th column (added in V5); older CSVs without it still import
-                String[] f = splitCsv(line, 8);
+                // tags=8th col (V5); category/published_at=9th/10th col (V6). Older CSVs lacking
+                // them still import (splitCsv pads missing trailing columns with "").
+                String[] f = splitCsv(line, 10);
                 String nodeId      = f[0];
                 String nodeType    = f[1];
                 String originalId  = f[2];
@@ -69,15 +70,17 @@ public class DataImportService implements CommandLineRunner {
                 Long   views       = parseLongOrNull(f[5]);
                 Long   likes       = parseLongOrNull(f[6]);
                 String tags        = f[7].isEmpty() ? null : f[7];
-                batch.add(new Object[]{nodeId, nodeType, originalId, displayName, channel, views, likes, tags});
+                String category    = f[8].isEmpty() ? null : f[8];
+                String publishedAt = f[9].isEmpty() ? null : f[9];
+                batch.add(new Object[]{nodeId, nodeType, originalId, displayName, channel, views, likes, tags, category, publishedAt});
             }
         } catch (IOException ex) {
             throw new RuntimeException("Failed to read nodes CSV: " + nodesCsv, ex);
         }
         // INSERT ... ON CONFLICT DO NOTHING — collapses the 500→483 dedup the v1 in-memory loader does
         jdbc.batchUpdate(
-            "INSERT INTO nodes(node_id, node_type, original_id, display_name, channel, views, likes, tags) " +
-            "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT (node_id) DO NOTHING",
+            "INSERT INTO nodes(node_id, node_type, original_id, display_name, channel, views, likes, tags, category, published_at) " +
+            "VALUES (?,?,?,?,?,?,?,?,?, ?::timestamptz) ON CONFLICT (node_id) DO NOTHING",
             batch);
         log.info("Imported {} node rows from CSV (after dedup, in-DB count = SELECT COUNT(*))", batch.size());
     }
