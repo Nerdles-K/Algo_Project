@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted } from "vue";
 import client from "../api/client";
 import VideoThumb from "../components/VideoThumb.vue";
@@ -71,6 +71,15 @@ function markFailed(id) {
   failedIds.value = { ...failedIds.value, [id]: true };
 }
 
+function formatDuration(seconds) {
+  if (!seconds) return "";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 onMounted(load);
 </script>
 
@@ -87,32 +96,17 @@ onMounted(load);
 
     <div class="controls-section">
       <div class="sort-bar">
-        <span class="sort-label">Sort by:</span>
-        <button
-          v-for="option in ['score', 'views', 'likes', 'recent']"
-          :key="option"
-          :class="['sort-btn', { active: sortBy === option }]"
-          @click="sortBy = option"
-        >
-          {{ option.charAt(0).toUpperCase() + option.slice(1) }}
-        </button>
-      </div>
-    </div>
-
-    <div v-if="result" class="summary-bar-new">
-      <div class="summary-item">
-        <span class="summary-label">Graph Node</span>
-        <span class="summary-value">{{ result.graphNodeId }}</span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-label">Showing</span>
-        <span class="summary-value"
-          >{{ visibleRecs.length }}/{{ result.count }}</span
-        >
-      </div>
-      <div class="summary-item">
-        <span class="summary-label">Avg Score</span>
-        <span class="summary-value">{{ avgScore }}</span>
+        <span class="sort-label">Sort by</span>
+        <div class="sort-buttons">
+          <button
+            v-for="option in ['Score', 'Views', 'Likes', 'Recent']"
+            :key="option"
+            :class="['sort-btn', { active: sortBy === option.toLowerCase() }]"
+            @click="sortBy = option.toLowerCase()"
+          >
+            {{ option }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -130,19 +124,22 @@ onMounted(load);
       >
         <div class="thumbnail-wrapper">
           <VideoThumb :video="v" @dead="markFailed(v.id)" />
+          <div class="duration-badge" v-if="v.duration">
+            {{ formatDuration(v.duration) }}
+          </div>
           <div class="score-badge">{{ v.finalScore.toFixed(2) }}</div>
         </div>
         <div class="card-body">
           <div class="card-header">
-            <div class="avatar">{{ v.channel.charAt(0).toUpperCase() }}</div>
-            <div class="card-info">
-              <div class="title">{{ v.title }}</div>
-              <div class="channel">{{ v.channel }}</div>
-            </div>
+            <div class="title">{{ v.title }}</div>
+            <div class="channel">{{ v.channel }}</div>
           </div>
           <div class="meta">
             <span>👁 {{ Number(v.views).toLocaleString() }}</span>
             <span>👍 {{ Number(v.likes).toLocaleString() }}</span>
+          </div>
+          <div class="upload-time" v-if="v.uploadedAt">
+            {{ new Date(v.uploadedAt).toLocaleDateString() }}
           </div>
         </div>
       </div>
@@ -156,11 +153,11 @@ onMounted(load);
 }
 
 .recommend-header {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .recommend-header h2 {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   color: var(--text);
   margin-bottom: 8px;
@@ -173,55 +170,13 @@ onMounted(load);
 }
 
 .controls-section {
-  margin-bottom: 24px;
-}
-
-.controls {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
-  flex-wrap: wrap;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.control-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.control-group label {
-  white-space: nowrap;
-  margin: 0;
-}
-
-.control-group input[type="range"] {
-  width: 140px;
-  accent-color: var(--accent2);
-}
-
-.control-group select {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text);
-  padding: 8px 12px;
-  font-size: 14px;
-  width: auto;
+  margin-bottom: 32px;
 }
 
 .sort-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 12px 16px;
+  gap: 16px;
 }
 
 .sort-label {
@@ -231,58 +186,35 @@ onMounted(load);
   white-space: nowrap;
 }
 
+.sort-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .sort-btn {
   background: var(--surface2);
   color: var(--text-dim);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 6px 12px;
-  font-size: 12px;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-base);
+  white-space: nowrap;
 }
 
 .sort-btn:hover {
   border-color: var(--accent2);
   color: var(--accent2);
+  background: rgba(83, 192, 240, 0.1);
 }
 
 .sort-btn.active {
   background: var(--accent2);
-  color: var(--bg);
+  color: #fff;
   border-color: var(--accent2);
-}
-
-.summary-bar-new {
-  display: flex;
-  gap: 32px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-.summary-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.summary-label {
-  font-size: 12px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-.summary-value {
-  font-size: 14px;
-  color: var(--accent2);
-  font-weight: 700;
 }
 
 .cards-grid {
@@ -327,6 +259,18 @@ onMounted(load);
   transform: scale(1.05);
 }
 
+.duration-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .score-badge {
   position: absolute;
   top: 8px;
@@ -344,28 +288,7 @@ onMounted(load);
 }
 
 .card-header {
-  display: flex;
-  gap: 12px;
   margin-bottom: 12px;
-  align-items: flex-start;
-}
-
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--surface2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--accent2);
-  flex-shrink: 0;
-}
-
-.card-info {
-  flex: 1;
 }
 
 .title {
@@ -391,5 +314,12 @@ onMounted(load);
   color: var(--text-dim);
   display: flex;
   gap: 16px;
+  margin-bottom: 8px;
+}
+
+.upload-time {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 8px;
 }
 </style>

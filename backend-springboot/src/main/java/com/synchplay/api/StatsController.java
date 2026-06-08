@@ -1,10 +1,14 @@
 package com.synchplay.api;
 
+import com.synchplay.auth.AppUser;
 import com.synchplay.domain.Graph;
 import com.synchplay.service.GraphService;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,7 +24,10 @@ public class StatsController {
     }
 
     @GetMapping
-    public Map<String, Object> stats() {
+    public Map<String, Object> stats(@AuthenticationPrincipal AppUser user) {
+        if (user == null || !user.isAdmin()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admins can access overview statistics");
+        }
         Graph g = graphService.getGraph();
         int n = g.getNodeCount();
         int e = g.getEdgeCount();

@@ -2,10 +2,7 @@ package com.synchplay.domain;
 
 import java.util.*;
 
-/**
- * 异构图类
- * 管理所有的节点和边
- */
+
 public class Graph {
     private Map<String, Node> nodeMap;  // 所有节点，key为nodeId
     private List<Edge> edges;           // 所有边
@@ -19,34 +16,20 @@ public class Graph {
         this.reverseAdjacencyList = new HashMap<>();
     }
 
-    // ============== 节点操作 ==============
-
-    /**
-     * 添加节点
-     */
     public void addNode(Node node) {
         nodeMap.put(node.getNodeId(), node);
         adjacencyList.putIfAbsent(node.getNodeId(), new ArrayList<>());
         reverseAdjacencyList.putIfAbsent(node.getNodeId(), new ArrayList<>());
     }
 
-    /**
-     * 获取节点
-     */
     public Node getNode(String nodeId) {
         return nodeMap.get(nodeId);
     }
 
-    /**
-     * 获取所有节点
-     */
     public Collection<Node> getAllNodes() {
         return nodeMap.values();
     }
 
-    /**
-     * 获取所有用户节点
-     */
     public List<Node> getUserNodes() {
         List<Node> users = new ArrayList<>();
         for (Node node : nodeMap.values()) {
@@ -57,9 +40,6 @@ public class Graph {
         return users;
     }
 
-    /**
-     * 获取所有视频节点
-     */
     public List<Node> getVideoNodes() {
         List<Node> videos = new ArrayList<>();
         for (Node node : nodeMap.values()) {
@@ -70,18 +50,10 @@ public class Graph {
         return videos;
     }
 
-    /**
-     * 获取节点总数
-     */
     public int getNodeCount() {
         return nodeMap.size();
     }
 
-    // ============== 边操作 ==============
-
-    /**
-     * 添加边
-     */
     public void addEdge(Edge edge) {
         edges.add(edge);
 
@@ -117,37 +89,22 @@ public class Graph {
         edge.getSource().removeNeighbor(edge.getTarget());
     }
 
-    /**
-     * 获取节点的出边列表
-     */
     public List<Edge> getOutEdges(String nodeId) {
         return adjacencyList.getOrDefault(nodeId, new ArrayList<>());
     }
 
-    /**
-     * 获取节点的入边列表
-     */
     public List<Edge> getInEdges(String nodeId) {
         return reverseAdjacencyList.getOrDefault(nodeId, new ArrayList<>());
     }
 
-    /**
-     * 获取所有边
-     */
     public List<Edge> getAllEdges() {
         return edges;
     }
 
-    /**
-     * 获取边总数
-     */
     public int getEdgeCount() {
         return edges.size();
     }
 
-    /**
-     * 按边类型获取边
-     */
     public List<Edge> getEdgesByType(String edgeType) {
         List<Edge> result = new ArrayList<>();
         for (Edge edge : edges) {
@@ -158,11 +115,6 @@ public class Graph {
         return result;
     }
 
-    // ============== 图算法 ==============
-
-    /**
-     * BFS召回：从用户出发，在K-hop内寻找候选视频
-     */
     public List<Node> findCandidateVideosByBFS(String userNodeId, int maxDepth) {
         if (maxDepth < 1) {
             throw new IllegalArgumentException("maxDepth 必须 >= 1");
@@ -215,9 +167,6 @@ public class Graph {
         return candidates;
     }
 
-    /**
-     * 计算全图PageRank分数
-     */
     public Map<String, Double> computePageRank(int iterations, double dampingFactor) {
         if (iterations <= 0) {
             throw new IllegalArgumentException("iterations 必须 > 0");
@@ -271,19 +220,11 @@ public class Graph {
         return ranks;
     }
 
-    /**
-     * 获取视频节点的PageRank（按分数降序）
-     */
     public LinkedHashMap<Node, Double> getVideoPageRankScores(int iterations, double dampingFactor) {
         Map<String, Double> rankMap = computePageRank(iterations, dampingFactor);
         return sortVideoRanks(rankMap);
     }
 
-    /**
-     * 基于观看行为的PageRank（对应 pagerank.py 的算法）
-     * 仅考虑 user → video 的 watch 边，每个用户将其"投票权"均分给看过的视频
-     * 收敛式迭代：maxIter 最大迭代次数，tol 收敛阈值
-     */
     public Map<String, Double> computeWatchBasedPageRank(double alpha, int maxIter, double tol) {
         List<Node> videos = getVideoNodes();
         int n = videos.size();
@@ -341,9 +282,6 @@ public class Graph {
         return pr;
     }
 
-    /**
-     * 获取视频节点的Watch-Based PageRank（按分数降序）
-     */
     public LinkedHashMap<Node, Double> getVideoWatchBasedPageRankScores(double alpha, int maxIter, double tol) {
         Map<String, Double> rankMap = computeWatchBasedPageRank(alpha, maxIter, tol);
         return sortVideoRanks(rankMap);
@@ -364,13 +302,6 @@ public class Graph {
         return result;
     }
 
-    // ============== LCC 茧房检测 ==============
-
-    /**
-     * 计算用户的局部聚类系数 (LCC)
-     * 衡量用户的社交邻居之间相互连接的程度
-     * LCC ∈ [0,1]，越高表示社交圈越封闭（茧房效应越强）
-     */
     public double computeLocalClusteringCoefficient(String userNodeId) {
         Node user = getNode(userNodeId);
         if (user == null || !user.isUser()) {
@@ -413,9 +344,6 @@ public class Graph {
         return (2.0 * edgesBetweenNeighbors) / (k * (k - 1.0));
     }
 
-    /**
-     * 计算所有用户的LCC，按LCC降序返回
-     */
     public LinkedHashMap<Node, Double> computeAllUserLCC() {
         List<Map.Entry<Node, Double>> entries = new ArrayList<>();
         for (Node user : getUserNodes()) {
@@ -444,15 +372,115 @@ public class Graph {
         return false;
     }
 
-    // ============== 综合打分排序 ==============
+    public double computeWatchTopicEntropy(String userId) {
+        Node user = getNode(userId);
+        if (user == null || !user.isUser()) {
+            return 0.0;
+        }
 
-    /** Default Dijkstra distance cap. With edge weights 0.1 (watch), 0.5 (similar), 1.0 (social),
-     *  a cap of 3.0 lets us reach ~3 social hops + a watch edge. */
+        // 1. 获取用户观看过的所有视频（watch边）
+        Map<String, Integer> topicCount = new HashMap<>();
+        int totalWatched = 0;
+        for (Edge edge : getOutEdges(userId)) {
+            if ("watch".equals(edge.getEdgeType()) && edge.getTarget().isVideo()) {
+                Node video = edge.getTarget();
+                String topic = video.getAttribute("topic"); // 视频节点需有topic属性（如"体育"/"娱乐"）
+                if (topic == null || topic.isEmpty()) {
+                    topic = "unknown";
+                }
+                topicCount.put(topic, topicCount.getOrDefault(topic, 0) + 1);
+                totalWatched++;
+            }
+        }
+
+        if (totalWatched == 0) {
+            return 0.0; // 无观看记录，熵值为0
+        }
+
+        // 2. 计算信息熵 H = -Σ(p_i * log2(p_i))
+        double entropy = 0.0;
+        for (int count : topicCount.values()) {
+            double p = (double) count / totalWatched;
+            entropy -= p * (Math.log(p) / Math.log(2)); // 以2为底的对数
+        }
+
+        // 3. 归一化到 [0,1]（熵的最大值为log2(主题数)）
+        int topicTypeCount = topicCount.size();
+        if (topicTypeCount <= 1) {
+            return 0.0;
+        }
+        double maxEntropy = Math.log(topicTypeCount) / Math.log(2);
+        return entropy / maxEntropy;
+    }
+
+    public double computePRConcentration(String userId) {
+        Node user = getNode(userId);
+        if (user == null || !user.isUser()) {
+            return 0.0;
+        }
+
+        // 1. 获取用户的候选推荐视频（BFS 2-hop）
+        List<Node> candidateVideos = findCandidateVideosByBFS(userId, 2);
+        if (candidateVideos.isEmpty()) {
+            return 0.0;
+        }
+
+        // 2. 获取候选视频的Watch-Based PageRank
+        Map<String, Double> prScores = computeWatchBasedPageRank(0.85, 50, 1e-6);
+
+        // 3. 计算PR分数的方差（方差越小 → 分数越集中 → 同质化越高）
+        double sum = 0.0, sumSquare = 0.0;
+        int validCount = 0;
+        for (Node video : candidateVideos) {
+            double pr = prScores.getOrDefault(video.getNodeId(), 0.0);
+            sum += pr;
+            sumSquare += pr * pr;
+            validCount++;
+        }
+
+        if (validCount == 0) {
+            return 0.0;
+        }
+
+        double mean = sum / validCount;
+        double variance = (sumSquare / validCount) - (mean * mean);
+
+        // 4. 归一化方差到 [0,1]，作为集中度分数
+        double maxVariance = 0.1; // 经验值，可根据实际数据调整
+        return Math.min(variance / maxVariance, 1.0);
+    }
+
+    public double computeCocoonScore(String userId) {
+        // 1. 获取三个核心指标
+        double lcc = computeLocalClusteringCoefficient(userId); // 社交封闭度（0-1）
+        double topicEntropy = computeWatchTopicEntropy(userId); // 内容多样性（0-1）
+        double prConcentration = computePRConcentration(userId); // 内容集中度（0-1）
+
+        // 2. 加权融合（权重可根据业务调整）
+        double socialWeight = 0.4;    // 社交封闭度权重
+        double contentDiversityWeight = 0.3; // 内容多样性权重（取反，因为熵越高茧房越弱）
+        double contentConcentrationWeight = 0.3; // 内容集中度权重
+
+        double cocoonScore = (socialWeight * lcc) +
+                             (contentDiversityWeight * (1 - topicEntropy)) +
+                             (contentConcentrationWeight * prConcentration);
+
+        // 3. 限制分数在0-1之间
+        return Math.max(0.0, Math.min(1.0, cocoonScore));
+    }
+
+    public String getCocoonLevel(String userId) {
+        double score = computeCocoonScore(userId);
+        if (score >= 0.7) {
+            return "high";
+        } else if (score >= 0.4) {
+            return "medium";
+        } else {
+            return "low";
+        }
+    }
     private static final double DEFAULT_MAX_DISTANCE = 3.0;
 
-    /**
-     * 综合打分（默认使用全图PageRank，γ=0 等价旧行为）
-     */
     public List<VideoScore> rankCandidatesByCompositeScore(String userNodeId, double alpha, double beta) {
         return rankCandidatesByCompositeScore(userNodeId, alpha, beta, 0.0, "full");
     }
@@ -466,17 +494,6 @@ public class Graph {
         return rankCandidatesByCompositeScore(userNodeId, alpha, beta, gamma, prMode, false);
     }
 
-    /**
-     * 综合打分：α·(1/d) + β·PR + γ·popularity
-     *   - distance：Dijkstra 加权最短路径（利用 edge weight）
-     *   - PR：全图或 watch-based PageRank
-     *   - popularity：log(views) 与 log(likes) 的归一化加权和
-     * 三个权重会自动归一化到和为 1。
-     *
-     * @param prMode        "full" 全图PageRank | "watch" watch-based PageRank
-     * @param excludeWatched 为 true 时，剔除该用户已直接观看过的视频（user→video 的 "watch" 出边目标）。
-     *                       观看历史写入图后即生效，从而闭合"边看边个性化"的反馈回路。
-     */
     public List<VideoScore> rankCandidatesByCompositeScore(
             String userNodeId, double alpha, double beta, double gamma, String prMode, boolean excludeWatched) {
 
@@ -560,10 +577,6 @@ public class Graph {
         try { return Long.parseLong(s); } catch (NumberFormatException e) { return 0L; }
     }
 
-    /**
-     * Dijkstra 加权最短路径：从用户节点出发，按 edge weight 累加距离，返回所有可达视频节点。
-     * 边权重含义：watch=0.1（强信号），similar=0.5，social=1.0（弱信号）—— 越小越近。
-     */
     private Map<String, Double> dijkstraVideoDistance(String userNodeId, double maxDistance) {
         Map<String, Double> videoDistances = new LinkedHashMap<>();
         Node startNode = getNode(userNodeId);
@@ -615,9 +628,6 @@ public class Graph {
         }
     }
 
-    /**
-     * 综合打分结果（内部类）
-     */
     public static class VideoScore {
         public final Node video;
         public final double distance;          // Dijkstra 加权距离
@@ -634,12 +644,6 @@ public class Graph {
         }
     }
 
-    // ============== 图统计 ==============
-
-    /**
-     * 计算图密度
-     * 密度 = 实际边数 / 最大可能边数
-     */
     public double getDensity() {
         int n = nodeMap.size();
         if (n <= 1) return 0;
@@ -647,16 +651,10 @@ public class Graph {
         return edges.size() / maxEdges;
     }
 
-    /**
-     * 获取节点的出度（出边数）
-     */
     public int getOutDegree(String nodeId) {
         return adjacencyList.getOrDefault(nodeId, new ArrayList<>()).size();
     }
 
-    /**
-     * 获取节点的入度（入边数）
-     */
     public int getInDegree(String nodeId) {
         int count = 0;
         for (Edge edge : edges) {
@@ -667,9 +665,6 @@ public class Graph {
         return count;
     }
 
-    /**
-     * 计算平均度
-     */
     public double getAverageDegree() {
         if (nodeMap.isEmpty()) return 0;
         int totalDegree = 0;
@@ -679,11 +674,6 @@ public class Graph {
         return totalDegree / (double) nodeMap.size();
     }
 
-    // ============== 打印和调试 ==============
-
-    /**
-     * 打印图的基本统计信息
-     */
     public void printStatistics() {
         System.out.println("\n====== 图的统计信息 ======");
         System.out.println("节点总数: " + nodeMap.size());
@@ -705,9 +695,6 @@ public class Graph {
         }
     }
 
-    /**
-     * 打印某个节点的邻居
-     */
     public void printNodeNeighbors(String nodeId) {
         Node node = getNode(nodeId);
         if (node == null) {

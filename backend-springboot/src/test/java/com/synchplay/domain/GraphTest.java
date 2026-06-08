@@ -129,6 +129,79 @@ class GraphTest {
         assertEquals(0.0, graph.computeLocalClusteringCoefficient("nonexistent"), 1e-9);
     }
 
+    @Test
+    @DisplayName("主题熵：uA只看娱乐视频，熵值为0；uB看2个娱乐视频，熵值也为0；uC看体育视频，熵值为0")
+    void computeWatchTopicEntropy() {
+        // uA只看v1（entertainment）→ 主题数=1 → 熵值=0
+        double entropyA = graph.computeWatchTopicEntropy("uA");
+        assertEquals(0.0, entropyA, 1e-9);
+
+        // uB看v1、v2（都是entertainment）→ 主题数=1 → 熵值=0
+        double entropyB = graph.computeWatchTopicEntropy("uB");
+        assertEquals(0.0, entropyB, 1e-9);
+
+        // uC只看v3（sports）→ 主题数=1 → 熵值=0
+        double entropyC = graph.computeWatchTopicEntropy("uC");
+        assertEquals(0.0, entropyC, 1e-9);
+
+        // uD无观看记录 → 熵值=0
+        double entropyD = graph.computeWatchTopicEntropy("uD");
+        assertEquals(0.0, entropyD, 1e-9);
+
+        // 非用户节点返回0
+        double entropyV1 = graph.computeWatchTopicEntropy("v1");
+        assertEquals(0.0, entropyV1, 1e-9);
+    }
+
+    @Test
+    @DisplayName("PR集中度：uA的候选视频PR分数集中，集中度>0")
+    void computePRConcentration() {
+        // uA的候选视频是v1、v2、v3 → PR分数有差异但集中 → 集中度>0
+        double concentrationA = graph.computePRConcentration("uA");
+        assertTrue(concentrationA >= 0.0 && concentrationA <= 1.0,
+                "集中度应在0-1之间，实际值：" + concentrationA);
+
+        // uD无候选视频 → 集中度=0
+        double concentrationD = graph.computePRConcentration("uD");
+        assertEquals(0.0, concentrationD, 1e-9);
+
+        // 非用户节点返回0
+        double concentrationV1 = graph.computePRConcentration("v1");
+        assertEquals(0.0, concentrationV1, 1e-9);
+    }
+
+    @Test
+    @DisplayName("综合茧房分数：uA社交封闭度高，分数接近0.4")
+    void computeCocoonScore() {
+        // uA的LCC=1.0，主题熵=0（1-熵=1），PR集中度>0 → 综合分数≈0.4*1 + 0.3*1 + 0.3*concentration
+        double scoreA = graph.computeCocoonScore("uA");
+        assertTrue(scoreA >= 0.7 && scoreA <= 1.0,
+                "uA重度茧房，分数应在0.7-1.0之间，实际值：" + scoreA);
+
+        // uD无社交/观看记录 → 分数=0
+        double scoreD = graph.computeCocoonScore("uD");
+        assertEquals(0.0, scoreD, 1e-9);
+
+        // 非用户节点返回0
+        double scoreV1 = graph.computeCocoonScore("v1");
+        assertEquals(0.0, scoreV1, 1e-9);
+    }
+
+    @Test
+    @DisplayName("茧房等级：uA是high，uD是low")
+    void getCocoonLevel() {
+        // uA综合分数≥0.7 → high
+        String levelA = graph.getCocoonLevel("uA");
+        assertEquals("high", levelA);
+
+        // uD综合分数=0 → low
+        String levelD = graph.getCocoonLevel("uD");
+        assertEquals("low", levelD);
+
+        // 非用户节点返回low（因为分数=0）
+        String levelV1 = graph.getCocoonLevel("v1");
+        assertEquals("low", levelV1);
+    }
     // ──────────────────── Composite scoring (Dijkstra + PR + popularity) ────────────────────
 
     @Test

@@ -36,17 +36,16 @@ public class FriendsController {
         Node me = g.getNode(graphNodeId);
         if (me == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "graph node not found");
 
+        Set<String> myFriendIds = socialFriendIds(g, graphNodeId);
+
         // Existing friends: social edges where I am the source
         Set<String> existingIds = new HashSet<>();
-        List<Map<String, String>> existing = new ArrayList<>();
+        List<Map<String, Object>> existing = new ArrayList<>();
         for (Edge e : g.getOutEdges(graphNodeId)) {
             if ("social".equals(e.getEdgeType())) {
                 Node friend = e.getTarget();
                 existingIds.add(friend.getNodeId());
-                Map<String, String> m = new LinkedHashMap<>();
-                m.put("id", friend.getNodeId());
-                m.put("name", friend.getDisplayName());
-                existing.add(m);
+                existing.add(friendEntry(g, graphNodeId, myFriendIds, friend));
             }
         }
 
@@ -56,25 +55,17 @@ public class FriendsController {
                 Node friend = e.getSource();
                 if (!existingIds.contains(friend.getNodeId())) {
                     existingIds.add(friend.getNodeId());
-                    Map<String, String> m = new LinkedHashMap<>();
-                    m.put("id", friend.getNodeId());
-                    m.put("name", friend.getDisplayName());
-                    existing.add(m);
+                    existing.add(friendEntry(g, graphNodeId, myFriendIds, friend));
                 }
             }
         }
 
         // Recommendations: exclude existing friends
         List<Node> recommended = graphService.getFriendRecommendationService().recommend(graphNodeId);
-        List<Map<String, String>> recItems = recommended.stream()
+        List<Map<String, Object>> recItems = recommended.stream()
             .filter(n -> !existingIds.contains(n.getNodeId()))
             .limit(top)
-            .map(n -> {
-                Map<String, String> m = new LinkedHashMap<>();
-                m.put("id", n.getNodeId());
-                m.put("name", n.getDisplayName());
-                return m;
-            })
+            .map(n -> friendEntry(g, graphNodeId, myFriendIds, n))
             .toList();
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -233,5 +224,35 @@ public class FriendsController {
         result.put("status", "ok");
         result.put("message", "Friend removed");
         return result;
+    }
+
+    private static Set<String> socialFriendIds(Graph g, String nodeId) {
+        Set<String> ids = new HashSet<>();
+        for (Edge e : g.getOutEdges(nodeId)) {
+            if ("social".equals(e.getEdgeType())) {
+                ids.add(e.getTarget().getNodeId());
+            }
+        }
+        for (Edge e : g.getInEdges(nodeId)) {
+            if ("social".equals(e.getEdgeType())) {
+                ids.add(e.getSource().getNodeId());
+            }
+        }
+        return ids;
+    }
+
+    private static int countMutualFriends(Graph g, Set<String> myFriendIds, String myId, String theirId) {
+        Set<String> theirFriends = socialFriendIds(g, theirId);
+        theirFriends.remove(myId);
+        theirFriends.retainAll(myFriendIds);
+        return theirFriends.size();
+    }
+
+    private static Map<String, Object> friendEntry(Graph g, String myId, Set<String> myFriendIds, Node node) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", node.getNodeId());
+        m.put("name", node.getDisplayName());
+        m.put("mutualFriends", countMutualFriends(g, myFriendIds, myId, node.getNodeId()));
+        return m;
     }
 }
