@@ -1,4 +1,4 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
+﻿* { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
   /* Colors */
@@ -184,55 +184,6 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; display: bl
   font-weight: 700;
 }
 
-.search-container {
-  display: flex;
-  align-items: center;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 0 var(--spacing-md);
-  height: 40px;
-  min-width: 300px;
-  transition: all var(--transition-base);
-}
-
-.search-container:focus-within {
-  border-color: var(--accent2);
-  box-shadow: 0 0 0 3px rgba(83, 192, 240, 0.1);
-}
-
-.search-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text);
-  font-size: 14px;
-  padding: 0;
-  height: 100%;
-}
-
-.search-input::placeholder {
-  color: var(--text-dim);
-}
-
-.search-btn {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color var(--transition-base);
-  padding: 0 var(--spacing-sm);
-}
-
-.search-btn:hover {
-  color: var(--accent2);
-  transform: none;
-}
-
 .topnav .tabs {
   display: flex;
   gap: var(--spacing-lg);
@@ -260,53 +211,6 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; display: bl
 .topnav .tabs .tab-link.active {
   color: var(--accent2);
   border-bottom-color: var(--accent2);
-}
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-lg);
-  margin-left: auto;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  transition: all var(--transition-base);
-  padding: 0;
-}
-
-.icon-btn:hover {
-  background: var(--surface2);
-  color: var(--accent2);
-  transform: none;
-}
-
-.user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent2), #2b9fd9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.user-avatar:hover {
-  box-shadow: 0 0 12px rgba(83, 192, 240, 0.4);
 }
 
 .main-content { flex: 1; padding: 28px 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
