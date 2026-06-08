@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import client from '../api/client'
 import { thumbSrc, openVideo } from '../utils/video'
+import { formatRelativeTime } from '../utils/formatting'
 
 const loading = ref(false)
 const error = ref('')
@@ -20,11 +21,6 @@ async function load() {
   } finally {
     loading.value = false
   }
-}
-
-function formatTime(ts) {
-  const d = new Date(ts)
-  return d.toLocaleString()
 }
 
 onMounted(load)
@@ -80,7 +76,7 @@ onMounted(load)
               </a>
             </td>
             <td style="color:var(--accent2)">{{ v.channel }}</td>
-            <td style="font-size:12px;color:var(--text-dim)">{{ formatTime(v.watched_at) }}</td>
+            <td style="font-size:12px;color:var(--text-dim)">{{ formatRelativeTime(v.watched_at) }}</td>
           </tr>
         </tbody>
       </table>

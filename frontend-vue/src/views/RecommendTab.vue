@@ -2,7 +2,10 @@
 import { ref, computed, onMounted } from "vue";
 import client from "../api/client";
 import VideoThumb from "../components/VideoThumb.vue";
+import VideoMenu from "../components/VideoMenu.vue";
 import { openVideo } from "../utils/video";
+import { formatRelativeTime } from "../utils/formatting";
+import { getAvatarGradient } from "../utils/colors";
 
 const alpha = ref(0.5);
 const beta = ref(0.3);
@@ -39,12 +42,6 @@ const visibleRecs = computed(() => {
   return sorted;
 });
 
-const avgScore = computed(() => {
-  if (visibleRecs.value.length === 0) return 0;
-  const sum = visibleRecs.value.reduce((acc, v) => acc + v.finalScore, 0);
-  return (sum / visibleRecs.value.length).toFixed(3);
-});
-
 async function load() {
   loading.value = true;
   error.value = "";
@@ -76,8 +73,19 @@ function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  if (h > 0)
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function getAvatarGradientStyle(channel) {
+  const [color1, color2] = getAvatarGradient(channel);
+  return `background: linear-gradient(135deg, ${color1}, ${color2})`;
+}
+
+function handleMenuAction(videoId, action) {
+  console.log(`Menu action: ${action} for video ${videoId}`);
+  // TODO: Implement menu actions (save, share, not interested, don't recommend)
 }
 
 onMounted(load);
@@ -120,29 +128,36 @@ onMounted(load);
         v-for="v in visibleRecs"
         :key="v.id"
         class="video-card"
-        @click="openVideo(v)"
       >
-        <div class="thumbnail-wrapper">
+        <div class="thumbnail-wrapper" @click="openVideo(v)">
           <VideoThumb :video="v" @dead="markFailed(v.id)" />
           <div class="duration-badge" v-if="v.duration">
             {{ formatDuration(v.duration) }}
           </div>
-          <div class="score-badge">{{ v.finalScore.toFixed(2) }}</div>
         </div>
         <div class="card-body">
           <div class="card-header">
-            <div class="avatar">{{ v.channel.charAt(0).toUpperCase() }}</div>
-            <div class="card-info">
+            <div class="avatar" :style="getAvatarGradientStyle(v.channel)">
+              {{ v.channel.charAt(0).toUpperCase() }}
+            </div>
+            <div class="card-info" @click="openVideo(v)" style="cursor: pointer;">
               <div class="title">{{ v.title }}</div>
               <div class="channel">{{ v.channel }}</div>
             </div>
+            <VideoMenu 
+              :video-id="v.id"
+              @save="handleMenuAction(v.id, 'save')"
+              @share="handleMenuAction(v.id, 'share')"
+              @not-interested="handleMenuAction(v.id, 'not-interested')"
+              @dont-recommend="handleMenuAction(v.id, 'dont-recommend')"
+            />
           </div>
           <div class="meta">
             <span>👁 {{ Number(v.views).toLocaleString() }}</span>
             <span>👍 {{ Number(v.likes).toLocaleString() }}</span>
           </div>
           <div class="upload-time" v-if="v.uploadedAt">
-            {{ new Date(v.uploadedAt).toLocaleDateString() }}
+            {{ formatRelativeTime(v.uploadedAt) }}
           </div>
         </div>
       </div>
@@ -232,7 +247,6 @@ onMounted(load);
   border-radius: var(--radius-lg);
   overflow: hidden;
   transition: all var(--transition-base);
-  cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
 
@@ -248,6 +262,12 @@ onMounted(load);
   aspect-ratio: 16/9;
   background: var(--surface2);
   overflow: hidden;
+  cursor: pointer;
+}
+
+.thumbnail-wrapper :deep(.thumb-container) {
+  width: 100%;
+  height: 100%;
 }
 
 .thumbnail-wrapper :deep(.thumb) {
@@ -274,18 +294,6 @@ onMounted(load);
   font-weight: 600;
 }
 
-.score-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(16, 185, 129, 0.9);
-  color: white;
-  padding: 4px 8px;
-  border-radius: var(--radius-md);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .card-body {
   padding: 16px;
 }
@@ -301,7 +309,6 @@ onMounted(load);
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent2), #2b9fd9);
   display: flex;
   align-items: center;
   justify-content: center;
