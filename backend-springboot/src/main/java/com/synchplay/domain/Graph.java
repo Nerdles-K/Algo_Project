@@ -429,26 +429,29 @@ public class Graph {
         // 2. 获取候选视频的Watch-Based PageRank
         Map<String, Double> prScores = computeWatchBasedPageRank(0.85, 50, 1e-6);
 
-        // 3. 计算PR分数的方差
-        double sum = 0.0, sumSquare = 0.0;
-        int validCount = 0;
+        // 3. 收集候选视频的 PR 分数
+        double total = 0.0;
+        List<Double> prList = new ArrayList<>();
         for (String videoId : candidateVideos.keySet()) {
             double pr = prScores.getOrDefault(videoId, 0.0);
-            sum += pr;
-            sumSquare += pr * pr;
-            validCount++;
+            prList.add(pr);
+            total += pr;
+        }
+        int n = prList.size();
+        if (n <= 1 || total <= 0.0) {
+            return 0.0; // 候选不足或无 PR，无法判定集中度
         }
 
-        if (validCount == 0) {
-            return 0.0;
+        // 4. 集中度 = 归一化 Herfindahl 指数（HHI），尺度无关、落在 [0,1]：
+        //    PR 完全均匀 → 0（多样）；集中在少数视频 → 1（同质化高）。
+        //    避免了原来 maxVariance 魔法常数导致的"恒等于 1"饱和问题。
+        double hhi = 0.0;
+        for (double pr : prList) {
+            double p = pr / total;
+            hhi += p * p;
         }
-
-        double mean = sum / validCount;
-        double variance = (sumSquare / validCount) - (mean * mean);
-
-        // 4. 集中度 = 1 - 归一化方差：方差越小 → 分数越集中 → 同质化越高 → 集中度越接近 1
-        double maxVariance = 0.1; // 经验值，可根据实际数据调整
-        return 1.0 - Math.min(variance / maxVariance, 1.0);
+        double minHhi = 1.0 / n; // 完全均匀分布时的 HHI 下界
+        return (hhi - minHhi) / (1.0 - minHhi);
     }
 
     public double computeCocoonScore(String userId) {
@@ -457,11 +460,14 @@ public class Graph {
             return 0.0;
         }
 
-        // 加权融合三个信号，但只计入"有数据"的信号、再按已计入权重归一化。
-        // 否则缺失信号（如无观看历史的用户）会被 (1-熵)=1 误判为高茧房。
-        final double socialWeight = 0.4;        // 社交封闭度
-        final double diversityWeight = 0.3;     // 内容多样性（取反：熵越高茧房越弱）
-        final double concentrationWeight = 0.3; // 候选内容集中度
+        // 两个可个性化、可解释的信号，各占一半；只计入"有数据"的信号再归一化，
+        // 避免缺失信号被误判为茧房。
+        //   社交封闭度 = LCC（你的好友是否抱团）
+        //   内容单一度 = 1 - 观看主题熵（你是否只看少数主题）
+        // 注：原先的"候选 PR 集中度"已移除——Dijkstra 候选集对每个用户几乎是全部视频，
+        //     该信号是全局常数、不具个性化区分度。
+        final double socialWeight = 0.5;
+        final double contentWeight = 0.5;
 
         double weightedSum = 0.0;
         double totalWeight = 0.0;
@@ -472,16 +478,10 @@ public class Graph {
             totalWeight += socialWeight;
         }
 
-        // 2. 内容多样性 —— 仅当用户有观看历史
+        // 2. 内容单一度 —— 仅当用户有观看历史
         if (hasWatchHistory(userId)) {
-            weightedSum += diversityWeight * (1.0 - computeWatchTopicEntropy(userId));
-            totalWeight += diversityWeight;
-        }
-
-        // 3. 候选内容集中度 —— 仅当存在可达候选视频
-        if (!dijkstraVideoDistance(userId, DEFAULT_MAX_DISTANCE).isEmpty()) {
-            weightedSum += concentrationWeight * computePRConcentration(userId);
-            totalWeight += concentrationWeight;
+            weightedSum += contentWeight * (1.0 - computeWatchTopicEntropy(userId));
+            totalWeight += contentWeight;
         }
 
         if (totalWeight == 0.0) {
@@ -525,6 +525,27 @@ public class Graph {
         } else {
             return "low";
         }
+    }
+
+    /**
+     * 茧房分的维度拆解（用于前端展示），口径与 {@link #computeCocoonScore} 一致：
+     * 两个值都是"越高越茧房"，无数据的信号返回 0（不计入、不误报）。
+     *   socialClosure        社交封闭度 = LCC
+     *   contentConcentration 内容单一度 = 1 - 观看主题熵
+     */
+    public Map<String, Double> computeCocoonBreakdown(String userId) {
+        Map<String, Double> breakdown = new LinkedHashMap<>();
+        Node user = getNode(userId);
+        boolean isUser = user != null && user.isUser();
+
+        double socialClosure = (isUser && countSocialNeighbors(userId) >= 2)
+                ? computeLocalClusteringCoefficient(userId) : 0.0;
+        double contentConcentration = (isUser && hasWatchHistory(userId))
+                ? (1.0 - computeWatchTopicEntropy(userId)) : 0.0;
+
+        breakdown.put("socialClosure", socialClosure);
+        breakdown.put("contentConcentration", contentConcentration);
+        return breakdown;
     }
     private static final double DEFAULT_MAX_DISTANCE = 3.0;
 

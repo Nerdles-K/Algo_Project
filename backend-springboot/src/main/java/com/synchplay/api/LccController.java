@@ -23,17 +23,19 @@ public class LccController {
         this.graphService = graphService;
     }
 
-    /** Returns LCC only for the authenticated user (personal echo chamber view). */
+    /** Returns the authenticated user's echo-chamber metrics (raw LCC + composite cocoon score). */
     @GetMapping
     public Map<String, Object> myLcc(@AuthenticationPrincipal AppUser user) {
         Graph g = graphService.getGraph();
-        double score = g.computeLocalClusteringCoefficient(user.getGraphNodeId());
+        String nodeId = user.getGraphNodeId();
+        double lcc = g.computeLocalClusteringCoefficient(nodeId);
 
         Map<String, Object> mine = new LinkedHashMap<>();
-        mine.put("id", user.getGraphNodeId());
+        mine.put("id", nodeId);
         mine.put("name", user.getUsername());
-        mine.put("lcc", Math.round(score * 10000.0) / 10000.0);
-        mine.put("riskLevel", riskLevel(score));
+        mine.put("lcc", round4(lcc));
+        mine.put("riskLevel", riskLevel(lcc));
+        addCocoon(g, nodeId, mine);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("mine", mine);
@@ -41,7 +43,7 @@ public class LccController {
         return result;
     }
 
-    /** Admin-only: returns LCC scores for ALL user nodes. */
+    /** Admin-only: returns echo-chamber metrics for ALL user nodes. */
     @GetMapping("/admin")
     public Map<String, Object> allLcc(@AuthenticationPrincipal AppUser user) {
         Graph g = graphService.getGraph();
@@ -49,12 +51,14 @@ public class LccController {
 
         List<Map<String, Object>> items = lccMap.entrySet().stream()
             .map(e -> {
-                double score = e.getValue();
+                String nodeId = e.getKey().getNodeId();
+                double lcc = e.getValue();
                 Map<String, Object> m = new LinkedHashMap<>();
-                m.put("id", e.getKey().getNodeId());
+                m.put("id", nodeId);
                 m.put("name", e.getKey().getDisplayName());
-                m.put("lcc", Math.round(score * 10000.0) / 10000.0);
-                m.put("riskLevel", riskLevel(score));
+                m.put("lcc", round4(lcc));
+                m.put("riskLevel", riskLevel(lcc));
+                addCocoon(g, nodeId, m);
                 return m;
             })
             .toList();
@@ -63,6 +67,19 @@ public class LccController {
         result.put("count", items.size());
         result.put("users", items);
         return result;
+    }
+
+    /** Adds composite cocoon score, level, and the 3-axis breakdown (all 0-1, higher = more cocooned). */
+    private static void addCocoon(Graph g, String nodeId, Map<String, Object> m) {
+        m.put("cocoonScore", round4(g.computeCocoonScore(nodeId)));
+        m.put("cocoonLevel", g.getCocoonLevel(nodeId));
+        Map<String, Object> breakdown = new LinkedHashMap<>();
+        g.computeCocoonBreakdown(nodeId).forEach((k, v) -> breakdown.put(k, round4(v)));
+        m.put("breakdown", breakdown);
+    }
+
+    private static double round4(double v) {
+        return Math.round(v * 10000.0) / 10000.0;
     }
 
     private static String riskLevel(double lcc) {
