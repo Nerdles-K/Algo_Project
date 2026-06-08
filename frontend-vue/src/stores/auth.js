@@ -6,6 +6,7 @@ export const useAuthStore = defineStore('auth', () => {
   const currentUser = ref(JSON.parse(localStorage.getItem('user') || 'null'))
 
   const isLoggedIn = computed(() => !!token.value)
+  const isAdmin = computed(() => currentUser.value?.role === 'ADMIN')
 
   function setAuth(newToken, user) {
     token.value = newToken
@@ -21,5 +22,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('user')
   }
 
-  return { token, currentUser, isLoggedIn, setAuth, logout }
+  return { token, currentUser, isLoggedIn, isAdmin, setAuth, logout }
 })

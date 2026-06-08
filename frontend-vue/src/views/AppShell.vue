@@ -14,12 +14,14 @@ function logout() {
 
 const tabs = [
   { path: '/app/friends', label: 'Friends' },
-  { path: '/app/overview', label: 'Overview' },
+  { path: '/app/overview', label: 'Overview', adminOnly: true },
   { path: '/app/lcc', label: 'Echo Chamber' },
   { path: '/app/pagerank', label: 'PageRank' },
   { path: '/app/watch-history', label: 'History' },
   { path: '/app/upload', label: 'Upload' },
 ]
+
+const visibleTabs = tabs.filter(tab => !tab.adminOnly || auth.isAdmin)
 </script>
 
 <template>
@@ -28,7 +30,7 @@ const tabs = [
       <router-link to="/app/recommend" class="brand" style="text-decoration:none;cursor:pointer">SynchPlay</router-link>
       <div class="tabs">
         <router-link
-          v-for="tab in tabs"
+          v-for="tab in visibleTabs"
           :key="tab.path"
           :to="tab.path"
           :class="{ active: route.path === tab.path }"
