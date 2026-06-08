@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import client from '../api/client'
 import VideoThumb from '../components/VideoThumb.vue'
 import { openVideo } from '../utils/video'
+import { getAvatarGradient } from '../utils/colors'
 
 const loading = ref(false)
 const error = ref('')
@@ -90,6 +91,11 @@ function initials(name) {
   return (name || '??').replace('User_', 'U').slice(0, 2).toUpperCase()
 }
 
+function getAvatarGradientStyle(channel) {
+  const [color1, color2] = getAvatarGradient(channel)
+  return `background: linear-gradient(135deg, ${color1}, ${color2})`
+}
+
 onMounted(load)
 </script>
 
@@ -151,10 +157,20 @@ onMounted(load)
                 >
                   <VideoThumb :video="v" @dead="markRecFailed(f.id, v.id)" />
                   <div class="card-body" style="padding:8px 10px">
-                    <div class="title" style="font-size:12px;line-height:1.3">{{ v.title }}</div>
-                    <div class="channel" style="font-size:10px;margin-bottom:4px">
-                      {{ v.channel }}
-                      <span v-if="v.source === 'native'" class="native-badge">native</span>
+                    <div style="display: flex; gap: 8px; margin-bottom: 4px; align-items: flex-start;">
+                      <div 
+                        class="avatar" 
+                        :style="[getAvatarGradientStyle(v.channel), { width: '24px', height: '24px', fontSize: '10px' }]"
+                      >
+                        {{ v.channel.charAt(0).toUpperCase() }}
+                      </div>
+                      <div style="flex: 1;">
+                        <div class="title" style="font-size:12px;line-height:1.3;margin:0">{{ v.title }}</div>
+                        <div class="channel" style="font-size:10px;margin:0">
+                          {{ v.channel }}
+                          <span v-if="v.source === 'native'" class="native-badge">native</span>
+                        </div>
+                      </div>
                     </div>
                     <div style="font-size:10px;color:var(--text-dim)">
                       <span>dist: {{ v.distance }}</span>
