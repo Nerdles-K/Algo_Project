@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/target
+**/dist
+backend-springboot/uploads
+uploads
+scripts/graph.html
+scripts/vis-network.min.js
+ProcessedData/*.bak
+ProcessedData/synchplay.db
+**/.DS_Store
+*.log

@@ -2,8 +2,11 @@ import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import router from '../router'
 
+// Empty by default → same-origin (works when frontend is served by the backend in
+// production). In local dev, Vite proxies /api and /media to :8080 (see vite.config.js).
+// Override with VITE_API_BASE only for a split frontend/backend deployment.
 const client = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: import.meta.env.VITE_API_BASE ?? '',
   timeout: 10000,
 })
 

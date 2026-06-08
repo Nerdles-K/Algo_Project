@@ -2,8 +2,8 @@
 import { reactive } from 'vue'
 import client from '../api/client'
 
-// Backend origin (same as the axios client baseURL) — native media is served from /media there.
-export const MEDIA_BASE = 'http://localhost:8080'
+// Same-origin by default (backend serves /media). Mirrors the axios client baseURL.
+export const MEDIA_BASE = import.meta.env.VITE_API_BASE ?? ''
 
 // Tolerate both the graph JSON shape (id/videoId) and the watch_history shape (video_node_id/video_id).
 const vid = v => v.videoId ?? v.video_id
