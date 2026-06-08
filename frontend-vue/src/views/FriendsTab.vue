@@ -43,10 +43,18 @@ function cardTransition(index) {
   return { delay: index * 0.06, duration: 0.45, ease: [0.22, 1, 0.36, 1] }
 }
 
+function clearFriendRecs() {
+  for (const id of Object.keys(friendRecs)) {
+    delete friendRecs[id]
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
   msg.value = ''
+  clearFriendRecs()
+  showAllSuggestions.value = false
   try {
     const res = await client.get('/api/friends', { params: { top: 10 } })
     result.value = res.data
@@ -161,20 +169,28 @@ onMounted(load)
         </div>
       </div>
 
-      <MotionButton
+      <button
+        type="button"
         class="btn-refresh"
         :disabled="loading"
-        :while-hover="{ scale: 1.03 }"
-        :while-tap="{ scale: 0.97 }"
+        :aria-busy="loading"
         @click="load"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          :class="{ spinning: loading }"
+        >
           <path d="M23 4v6h-6" />
           <path d="M1 20v-6h6" />
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
         </svg>
         {{ loading ? 'Loading…' : 'Refresh' }}
-      </MotionButton>
+      </button>
     </MotionDiv>
 
     <AnimatePresence>
@@ -205,7 +221,7 @@ onMounted(load)
       <p>Loading your network…</p>
     </div>
 
-    <div v-else-if="result" class="friends-grid">
+    <div v-else-if="result" class="friends-grid" :class="{ 'is-refreshing': loading }">
       <!-- Left column: Your Friends -->
       <section class="column column-left">
         <div class="section-head">
@@ -239,8 +255,8 @@ onMounted(load)
                 <MotionButton
                   class="btn-recs"
                   :while-hover="{ scale: 1.04 }"
-                  :while-tap="{ scale: 0.96 }"
-                  @click="toggleFriendRecs(f.id)"
+                  :while-press="{ scale: 0.96 }"
+                  @press="toggleFriendRecs(f.id)"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M8 5v14l11-7z" />
@@ -251,8 +267,8 @@ onMounted(load)
                   class="btn-unfollow"
                   :disabled="actionId === f.id"
                   :while-hover="{ scale: 1.04 }"
-                  :while-tap="{ scale: 0.96 }"
-                  @click="unfollow(f.id, f.name)"
+                  :while-press="{ scale: 0.96 }"
+                  @press="unfollow(f.id, f.name)"
                 >
                   {{ actionId === f.id ? '…' : 'Unfollow' }}
                 </MotionButton>
@@ -362,8 +378,8 @@ onMounted(load)
               class="btn-follow"
               :disabled="actionId === f.id"
               :while-hover="{ scale: 1.05 }"
-              :while-tap="{ scale: 0.95 }"
-              @click="follow(f.id, f.name)"
+              :while-press="{ scale: 0.95 }"
+              @press="follow(f.id, f.name)"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -489,11 +505,30 @@ onMounted(load)
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(233, 69, 96, 0.35);
   flex-shrink: 0;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  transform: scale(1.03);
+}
+
+.btn-refresh:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn-refresh:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-refresh svg.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+.friends-grid.is-refreshing {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
 /* Toasts */
