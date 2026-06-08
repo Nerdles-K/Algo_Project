@@ -42,6 +42,7 @@ public class DataImportService implements CommandLineRunner {
         long edgeCount = jdbc.queryForObject("SELECT COUNT(*) FROM edges", Long.class);
         if (nodeCount > 0 && edgeCount > 0) {
             log.info("CSV import skipped: nodes={}, edges={} already present", nodeCount, edgeCount);
+            backfillNodeMetadata();
             return;
         }
         log.info("Empty DB detected; importing CSV from {} and {}", nodesCsv, edgesCsv);
@@ -50,6 +51,42 @@ public class DataImportService implements CommandLineRunner {
         long n = jdbc.queryForObject("SELECT COUNT(*) FROM nodes", Long.class);
         long e = jdbc.queryForObject("SELECT COUNT(*) FROM edges", Long.class);
         log.info("CSV import complete: {} nodes, {} edges", n, e);
+    }
+
+    /**
+     * Idempotent: backfills category/published_at for existing video nodes that lack them,
+     * reading from the bundled nodes CSV. Lets an already-populated DB (e.g. an existing Railway
+     * deployment) pick up the V6 columns on the next boot without a wipe/re-import.
+     */
+    private void backfillNodeMetadata() {
+        Long missing = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM nodes WHERE node_type='video' AND category IS NULL", Long.class);
+        if (missing == null || missing == 0L) {
+            return; // nothing to do
+        }
+        List<Object[]> batch = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(nodesCsv))) {
+            String header = br.readLine();   // skip
+            if (header == null) return;
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] f = splitCsv(line, 10);
+                if (!"video".equals(f[1])) continue;
+                String category    = f[8].isEmpty() ? null : f[8];
+                String publishedAt = f[9].isEmpty() ? null : f[9];
+                if (category == null && publishedAt == null) continue;
+                batch.add(new Object[]{category, publishedAt, f[0]});
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read nodes CSV for backfill: " + nodesCsv, ex);
+        }
+        int[] updated = jdbc.batchUpdate(
+            "UPDATE nodes SET category = ?, published_at = ?::timestamptz " +
+            "WHERE node_id = ? AND category IS NULL",
+            batch);
+        int total = 0;
+        for (int u : updated) total += u;
+        log.info("Backfilled category/published_at for {} existing video nodes from CSV", total);
     }
 
     private void importNodes() {
