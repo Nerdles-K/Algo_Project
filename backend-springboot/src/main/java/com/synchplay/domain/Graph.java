@@ -561,6 +561,26 @@ public class Graph {
 
     public List<VideoScore> rankCandidatesByCompositeScore(
             String userNodeId, double alpha, double beta, double gamma, String prMode, boolean excludeWatched) {
+        return rankCandidatesByCompositeScore(userNodeId, alpha, beta, gamma, 0.0, prMode, excludeWatched);
+    }
+
+    /**
+     * Unified candidate ranking — ONE formula, four weighted signals (auto-normalized so the
+     * effective weights sum to 1):
+     * <pre>
+     *   finalScore = α·distanceScore + β·normalizedPR + γ·popularity + δ·categoryNovelty
+     * </pre>
+     *   distanceScore   — social/graph proximity (Dijkstra, normalized so the nearest video = 1.0)
+     *   normalizedPR    — global PageRank (full or watch mode)
+     *   popularity      — log-scaled views + likes
+     *   categoryNovelty — 1 − share of the user's watch history in that video's category
+     *                     (1.0 if the user has no history; 0.5 if the video has no category)
+     * <p>
+     * "For You" passes δ = 0 (pure relevance). "Explore" passes a large δ so unfamiliar
+     * content categories rise to the top — same formula, different parameters.
+     */
+    public List<VideoScore> rankCandidatesByCompositeScore(
+            String userNodeId, double alpha, double beta, double gamma, double delta, String prMode, boolean excludeWatched) {
 
         Map<String, Double> videoDistanceMap = dijkstraVideoDistance(userNodeId, DEFAULT_MAX_DISTANCE);
         if (videoDistanceMap.isEmpty()) {
@@ -603,11 +623,25 @@ public class Graph {
         // 最近视频的 distanceScore 作为归一化分母（最近视频归一化后 = 1.0）
         double maxDistanceScore = 1.0 / Math.max(minDistance, 0.01);
 
-        // 权重归一化（α+β+γ=1）
-        double sum = alpha + beta + gamma;
+        // 用户观看的类别分布 → 用于"类别新颖度"（与观看主题熵同源）。
+        // novelty(v) = 1 − p(category(v))：从未看过的类别 → 1.0；常看的类别 → 接近 0。
+        Map<String, Integer> watchedCategories = new HashMap<>();
+        int totalWatched = 0;
+        for (Edge e : getOutEdges(userNodeId)) {
+            if ("watch".equals(e.getEdgeType()) && e.getTarget().isVideo()) {
+                String c = e.getTarget().getAttribute("category");
+                if (c == null || c.isEmpty()) continue;
+                watchedCategories.merge(c, 1, Integer::sum);
+                totalWatched++;
+            }
+        }
+
+        // 权重归一化（α+β+γ+δ=1）
+        double sum = alpha + beta + gamma + delta;
         double aN = sum > 0 ? alpha / sum : 0.0;
         double bN = sum > 0 ? beta  / sum : 0.0;
         double gN = sum > 0 ? gamma / sum : 0.0;
+        double dN = sum > 0 ? delta / sum : 0.0;
 
         List<VideoScore> results = new ArrayList<>();
         for (Map.Entry<String, Double> entry : videoDistanceMap.entrySet()) {
@@ -625,66 +659,26 @@ public class Graph {
             double popularity = 0.6 * (Math.log1p(views) / maxLogViews)
                               + 0.4 * (Math.log1p(likes) / maxLogLikes);
 
+            // 类别新颖度：1 − 该视频类别在用户观看历史中的占比
+            double novelty;
+            String category = videoNode.getAttribute("category");
+            if (category == null || category.isEmpty()) {
+                novelty = 0.5;                 // 无类别 → 中性，不奖励也不惩罚
+            } else if (totalWatched == 0) {
+                novelty = 1.0;                 // 无观看历史 → 一切都是"新"的
+            } else {
+                novelty = 1.0 - watchedCategories.getOrDefault(category, 0) / (double) totalWatched;
+            }
+
             // 归一化到 0~1：最近的视频 = 1.0，越远越接近 0（= minDistance / distance）
             double distanceScore = (1.0 / Math.max(distance, 0.01)) / maxDistanceScore;
-            double finalScore = aN * distanceScore + bN * normalizedPR + gN * popularity;
+            double finalScore = aN * distanceScore + bN * normalizedPR + gN * popularity + dN * novelty;
 
             results.add(new VideoScore(videoNode, distance, prScore, popularity, finalScore));
         }
 
         results.sort((a, b) -> Double.compare(b.finalScore, a.finalScore));
         return results;
-    }
-
-    /**
-     * Explore ranking — re-scores the SAME reachable candidates as the composite
-     * recommender, but rewards content CATEGORIES the user rarely (or never)
-     * watches, surfacing material outside their usual topics to counter the
-     * information cocoon. Category novelty dominates (70%); the standard composite
-     * score is blended in (30%) only to keep picks reachable/relevant rather than
-     * random. Users with no watch history fall back toward composite order
-     * (nothing to "break out of" yet).
-     */
-    public List<VideoScore> rankCandidatesByExplore(
-            String userNodeId, double alpha, double beta, double gamma, String prMode, boolean excludeWatched) {
-
-        List<VideoScore> base = rankCandidatesByCompositeScore(userNodeId, alpha, beta, gamma, prMode, excludeWatched);
-        if (base.isEmpty()) return base;
-
-        // User's watched-category distribution p(category) — same source as topic entropy.
-        Map<String, Integer> categoryCount = new HashMap<>();
-        int totalWatched = 0;
-        for (Edge edge : getOutEdges(userNodeId)) {
-            if ("watch".equals(edge.getEdgeType()) && edge.getTarget().isVideo()) {
-                String c = edge.getTarget().getAttribute("category");
-                if (c == null || c.isEmpty()) continue;
-                categoryCount.merge(c, 1, Integer::sum);
-                totalWatched++;
-            }
-        }
-
-        double maxBase = base.stream().mapToDouble(vs -> vs.finalScore).max().orElse(1.0);
-        if (maxBase <= 0) maxBase = 1.0;
-
-        final double NOVELTY_WEIGHT = 0.7;
-        List<VideoScore> rescored = new ArrayList<>(base.size());
-        for (VideoScore vs : base) {
-            String c = vs.video.getAttribute("category");
-            double novelty;
-            if (c == null || c.isEmpty()) {
-                novelty = 0.5;                 // unknown category — neutral, neither boosted nor buried
-            } else if (totalWatched == 0) {
-                novelty = 1.0;                 // no history yet — everything is "new"
-            } else {
-                double p = categoryCount.getOrDefault(c, 0) / (double) totalWatched;
-                novelty = 1.0 - p;             // never-watched category → 1.0; heavily-watched → low
-            }
-            double exploreScore = NOVELTY_WEIGHT * novelty
-                                + (1.0 - NOVELTY_WEIGHT) * (vs.finalScore / maxBase);
-            rescored.add(new VideoScore(vs.video, vs.distance, vs.pageRankScore, vs.popularityScore, exploreScore));
-        }
-        rescored.sort((a, b) -> Double.compare(b.finalScore, a.finalScore));
-        return rescored;
     }
 
     private static long parseLongAttr(Node n, String key) {

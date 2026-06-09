@@ -49,6 +49,7 @@ public class AppUser {
     public String getEmail()       { return email; }
     public String getPasswordHash(){ return passwordHash; }
     public String getGraphNodeId() { return graphNodeId; }
+    public void setGraphNodeId(String graphNodeId) { this.graphNodeId = graphNodeId; }
     public String getRole()        { return role; }
     public void setRole(String role) { this.role = role; }
     public Instant getCreatedAt()  { return createdAt; }

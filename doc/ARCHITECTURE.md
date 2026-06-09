@@ -221,8 +221,7 @@ CREATE INDEX idx_nodes_type      ON nodes(node_type);
 | 1 | BFS Multi-Hop Recall | `Graph.findCandidateVideosByBFS(userId, depth)` | Candidate discovery |
 | 2 | Full-Graph PageRank | `Graph.computePageRank(20, 0.85)` | Global video authority |
 | 3 | Watch-Based PageRank | `Graph.computeWatchBasedPageRank(0.85, 50, 1e-6)` | User-centric PR |
-| 4 | Composite Scoring | `Graph.rankCandidatesByCompositeScore(uid, α, β, γ, prMode, excludeWatched)` | finalScore = α×(1/dist) + β×normPR + γ×popularity (Dijkstra distance) |
-| 4b | Explore Re-rank | `Graph.rankCandidatesByExplore(...)` | Break-the-cocoon: 0.7×category-novelty + 0.3×composite |
+| 4 | Composite Scoring (unified) | `Graph.rankCandidatesByCompositeScore(uid, α, β, γ, δ, prMode, excludeWatched)` | finalScore = α×distance + β×normPR + γ×popularity + δ×categoryNovelty (auto-normalized). **For You** δ=0; **Explore** δ=2×(α+β+γ) — one formula, different params |
 | 5 | LCC Echo Chamber | `Graph.computeLocalClusteringCoefficient(uid)` | Social closure |
 | 5b | Watch Topic Entropy | `Graph.computeWatchTopicEntropy(uid)` | Content concentration (over `category`) |
 | 5c | Cocoon Score | `Graph.computeCocoonScore / computeCocoonBreakdown / getCocoonLevel` | Composite echo-chamber risk = 0.5×LCC + 0.5×(1−topic entropy) |

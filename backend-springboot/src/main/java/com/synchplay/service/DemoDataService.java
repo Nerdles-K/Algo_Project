@@ -22,10 +22,14 @@ public class DemoDataService {
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataService.class);
 
+    // 4th field = pinned graph node ("" → fall back to round-robin assignment).
+    // demo2/demo3 are pinned to well-connected hub nodes in TWO DIFFERENT social
+    // communities, so their Dijkstra-reachable neighborhoods (and recommendations)
+    // are genuinely distinct — unlike the sparsely-connected default nodes.
     private static final String[][] DEMO_USERS = {
-        {"demo1", "demo1@synchplay.dev", "ADMIN"},
-        {"demo2", "demo2@synchplay.dev", "USER"},
-        {"demo3", "demo3@synchplay.dev", "USER"},
+        {"demo1", "demo1@synchplay.dev", "ADMIN", ""},            // round-robin (unchanged)
+        {"demo2", "demo2@synchplay.dev", "USER",  "user_11867"},  // hub of social community #0 (social=9, watch=9)
+        {"demo3", "demo3@synchplay.dev", "USER",  "user_4295"},   // hub of social community #1 (social=7, watch=6)
     };
     private static final String DEMO_PASSWORD = "demo123";
 
@@ -53,21 +57,46 @@ public class DemoDataService {
             String username = entry[0];
             String email    = entry[1];
             String role     = entry[2];
+            String pinned   = entry[3];
+
+            // Resolve the target graph node: pinned (if it exists as a user node) else round-robin.
+            String graphNodeId;
+            if (!pinned.isEmpty() && isUserNode(pinned)) {
+                graphNodeId = pinned;
+            } else {
+                if (!pinned.isEmpty()) {
+                    log.warn("Demo user '{}': pinned node {} not found in graph, falling back to round-robin", username, pinned);
+                }
+                int idx = (int) (repo.count() % userNodes.size());
+                graphNodeId = userNodes.get(idx).getNodeId();
+            }
+
             if (repo.existsByUsername(username)) {
-                // Ensure role is correct even for existing demo accounts
+                // Keep role AND graph node in sync for existing demo accounts (re-point if changed).
+                final String targetNode = graphNodeId;
                 repo.findByUsername(username).ifPresent(u -> {
+                    boolean changed = false;
                     if (!role.equals(u.getRole())) {
-                        u.setRole(role);
-                        repo.save(u);
+                        u.setRole(role); changed = true;
                         log.info("Updated demo user '{}' role to {}", username, role);
                     }
+                    if (!pinned.isEmpty() && !targetNode.equals(u.getGraphNodeId())) {
+                        log.info("Re-pointed demo user '{}' graph node {} → {}", username, u.getGraphNodeId(), targetNode);
+                        u.setGraphNodeId(targetNode); changed = true;
+                    }
+                    if (changed) repo.save(u);
                 });
                 continue;
             }
-            int idx = (int) (repo.count() % userNodes.size());
-            String graphNodeId = userNodes.get(idx).getNodeId();
+
             repo.save(new AppUser(username, email, encoder.encode(DEMO_PASSWORD), graphNodeId, role));
             log.info("Seeded demo user '{}' (role={}) → graph node {}", username, role, graphNodeId);
         }
+    }
+
+    /** True if the given node id exists in the in-memory graph and is a user node. */
+    private boolean isUserNode(String nodeId) {
+        Node n = graphService.getGraph().getNode(nodeId);
+        return n != null && n.isUser();
     }
 }

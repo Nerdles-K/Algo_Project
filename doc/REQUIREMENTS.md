@@ -66,7 +66,7 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-C.11 | **Native video upload**: `POST /api/videos/upload` (multipart) stores a real video file + browser-captured thumbnail under `./uploads`, served at `/media/**` with HTTP Range; node carries `source='native'` and is played in-app via an HTML5 `<video>` modal. Native + YouTube videos coexist in the graph and all tabs | Medium | ✅ (2026-06-06) |
 | FR-C.12 | **Content-diversity signal**: video `category` (from USvideos `category_id` via `US_category_id.json`) + `published_at` stored on nodes (Flyway V5 `tags`, V6 `category`/`published_at`; `DataImportService` backfills existing DBs) | Medium | ✅ (2026-06-08) |
 | FR-C.13 | **Composite cocoon score**: `computeCocoonScore` = 0.5×LCC (social closure) + 0.5×(1−watch-topic-entropy) (content concentration); only signals with data are counted and re-normalised; `/api/lcc` returns score + breakdown + level | Medium | ✅ (2026-06-08) |
-| FR-C.14 | **Explore (break-the-cocoon) mode**: `GET /api/recommend?mode=explore` re-ranks the same reachable candidates by category novelty (0.7×novelty + 0.3×composite), surfacing topics the user rarely watches; `mode=foryou` is the default relevance ranking | Medium | ✅ (2026-06-09) |
+| FR-C.14 | **Explore (break-the-cocoon) mode**: For You and Explore share **one** scoring formula `α·dist + β·PR + γ·pop + δ·categoryNovelty`; `mode=foryou` uses δ=0, `mode=explore` raises δ (=2×(α+β+γ) ≈ 2/3 novelty weight) to surface topics the user rarely watches | Medium | ✅ (2026-06-09) |
 
 ### FR-D: Frontend (REWRITE)
 

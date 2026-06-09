@@ -17,6 +17,9 @@ import java.util.Map;
 @RequestMapping("/api/recommend")
 public class RecommendController {
 
+    /** Explore mode sets δ = ratio × (α+β+γ), so novelty earns ~2/3 of the final weight regardless of slider scale. */
+    private static final double EXPLORE_DELTA_RATIO = 2.0;
+
     private final GraphService graphService;
 
     public RecommendController(GraphService graphService) {
@@ -36,12 +39,13 @@ public class RecommendController {
         String graphNodeId = user.getGraphNodeId();
         Graph g = graphService.getGraph();
 
+        // Same composite formula for both modes; the ONLY difference is the category-novelty
+        // weight δ. mode=foryou → δ=0 (pure relevance); mode=explore → δ scaled to ~2× the
+        // relevance weights, so unfamiliar content categories dominate (break the cocoon).
         // excludeWatched=true: drop videos the user has already watched (closes the feedback loop).
-        // mode=explore re-ranks toward unfamiliar content categories (break the cocoon);
-        // mode=foryou (default) ranks by the relevance composite score.
-        List<Graph.VideoScore> scores = "explore".equals(mode)
-            ? g.rankCandidatesByExplore(graphNodeId, alpha, beta, gamma, prMode, true)
-            : g.rankCandidatesByCompositeScore(graphNodeId, alpha, beta, gamma, prMode, true);
+        double delta = "explore".equals(mode) ? EXPLORE_DELTA_RATIO * (alpha + beta + gamma) : 0.0;
+        List<Graph.VideoScore> scores =
+            g.rankCandidatesByCompositeScore(graphNodeId, alpha, beta, gamma, delta, prMode, true);
 
         List<Map<String, Object>> items = scores.stream()
             .limit(top)
@@ -63,17 +67,19 @@ public class RecommendController {
             })
             .toList();
 
-        // 归一化后返回，方便前端展示
-        double sum = alpha + beta + gamma;
+        // 归一化后返回（含 δ 新颖度权重），方便前端展示当前各信号的实际占比
+        double sum = alpha + beta + gamma + delta;
         double aN = sum > 0 ? alpha / sum : 0.0;
         double bN = sum > 0 ? beta  / sum : 0.0;
         double gN = sum > 0 ? gamma / sum : 0.0;
+        double dN = sum > 0 ? delta / sum : 0.0;
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("graphNodeId", graphNodeId);
-        result.put("alpha", Math.round(aN * 100.0) / 100.0);
-        result.put("beta",  Math.round(bN * 100.0) / 100.0);
-        result.put("gamma", Math.round(gN * 100.0) / 100.0);
+        result.put("alpha",   Math.round(aN * 100.0) / 100.0);
+        result.put("beta",    Math.round(bN * 100.0) / 100.0);
+        result.put("gamma",   Math.round(gN * 100.0) / 100.0);
+        result.put("novelty", Math.round(dN * 100.0) / 100.0);
         result.put("prMode", prMode);
         result.put("mode", mode);
         result.put("count", items.size());
