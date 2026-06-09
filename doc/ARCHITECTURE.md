@@ -7,7 +7,7 @@
 SynchPlay is a social-graph-based video recommendation engine. It addresses the "information cocoon" problem by analyzing a user's social circle to surface videos watched by friends, rather than relying solely on popularity-based ranking.
 
 **Architecture style (v2):**
-- SPA frontend (Vue 3) → REST API (Spring Boot 3) → PostgreSQL 16
+- SPA frontend (Vue 3) → REST API (Spring Boot 3) → PostgreSQL 17
 - Stateless JWT authentication
 - Algorithms run on an in-memory Graph hydrated from Postgres at startup
 
@@ -25,9 +25,11 @@ SynchPlay is a social-graph-based video recommendation engine. It addresses the 
 │    /register         (public)                              │
 │    /app/recommend    (guarded)  ─┐                         │
 │    /app/friends      (guarded)   │                         │
-│    /app/overview     (guarded)   │ All call API with       │
+│    /app/overview     (admin)     │ All call API with       │
 │    /app/lcc          (guarded)   │ Authorization: Bearer   │
-│    /app/pagerank     (guarded)  ─┘                         │
+│    /app/pagerank     (guarded)   │                         │
+│    /app/watch-history(guarded)   │                         │
+│    /app/upload       (guarded)  ─┘                         │
 └──────────────┬─────────────────────────────────────────────┘
                │  fetch + JWT
                ▼
@@ -59,11 +61,12 @@ SynchPlay is a social-graph-based video recommendation engine. It addresses the 
 └────────────────────────────┼───────────────────────────────┘
                              ▼
 ┌────────────────────────────────────────────────────────────┐
-│  PostgreSQL 16  (synchplay database)                       │
-│    app_users(id, username, email, password_hash, ...)       │
-│    nodes(node_id, node_type, ...)                          │
+│  PostgreSQL 17  (synchplay database)                       │
+│    app_users(id, username, email, password_hash, role, ...) │
+│    nodes(node_id, node_type, ..., source, category, ...)    │
 │    edges(src, dst, edge_type, weight)                      │
-│  Managed via Flyway migrations                             │
+│    watch_history(user_id, video_node_id, watched_at, ...)   │
+│  Managed via Flyway migrations (V1–V6)                     │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -118,25 +121,27 @@ Algo_Project/
 │   └── src/
 │       ├── main.js
 │       ├── App.vue
-│       ├── router/index.js               # Routes + auth guard
+│       ├── router/index.js               # Routes + auth guard (+ admin guard)
 │       ├── stores/auth.js                # Pinia auth store
 │       ├── api/client.js                 # axios instance + interceptors
-│       ├── pages/
-│       │   ├── LoginPage.vue
-│       │   ├── RegisterPage.vue
-│       │   └── AppShell.vue              # Top nav + <router-view>
-│       └── components/
-│           ├── RecommendTab.vue
+│       ├── components/                   # VideoThumb, VideoModal, VideoMenu, AppCard, AppButton, ...
+│       └── views/
+│           ├── LoginPage.vue
+│           ├── RegisterPage.vue
+│           ├── AppShell.vue              # Top nav (7 tabs) + <router-view>
+│           ├── RecommendTab.vue          # For You / Explore modes
 │           ├── FriendsTab.vue
-│           ├── OverviewTab.vue
-│           ├── LccTab.vue
-│           └── PageRankTab.vue
+│           ├── OverviewTab.vue           # admin-only
+│           ├── LccTab.vue                # Echo Chamber: LCC + cocoon score
+│           ├── PageRankTab.vue
+│           ├── WatchHistoryTab.vue
+│           └── UploadTab.vue
 │
 ├── scripts/                        # v1-era Python: data prep + algorithm prototypes
 ├── ProcessedData/                  # Shared: CSV + initial DB seed
 ├── Dataset/                        # Raw data
 ├── doc/                            # Engineering docs (this folder)
-├── docs/                           # Original project summary
+├── Dockerfile / DEPLOY.md          # Single-image cloud deployment
 └── dev.sh                          # NEW: parallel start backend + frontend
 ```
 
@@ -169,7 +174,11 @@ CREATE TABLE nodes (
     -- V4: native uploaded videos
     source       VARCHAR(16) NOT NULL DEFAULT 'youtube',  -- 'youtube' | 'native'
     media_path   VARCHAR(255),            -- uploaded file (native only)
-    thumb_path   VARCHAR(255)             -- captured thumbnail (native only)
+    thumb_path   VARCHAR(255),            -- captured thumbnail (native only)
+    -- V5/V6: content-diversity signal
+    tags         TEXT,                    -- cleaned topic tags (feeds similar edges)
+    category     VARCHAR(64),             -- topic category (USvideos category_id → US_category_id.json)
+    published_at TIMESTAMPTZ              -- real publish time (display / future freshness)
 );
 
 CREATE TABLE edges (
@@ -197,11 +206,11 @@ CREATE INDEX idx_edges_type      ON edges(edge_type);
 CREATE INDEX idx_nodes_type      ON nodes(node_type);
 ```
 
-> Schema evolves via Flyway `V1`→`V4`: V1 base (app_users/nodes/edges), V2 `watch_history`, V3 `app_users.role`, V4 native-video columns on `nodes`.
+> Schema evolves via Flyway `V1`→`V6`: V1 base (app_users/nodes/edges), V2 `watch_history`, V3 `app_users.role`, V4 native-video columns on `nodes`, V5 `nodes.tags`, V6 `nodes.category` + `published_at`. On existing DBs, `DataImportService` also backfills `category`/`published_at` for video nodes that predate V6.
 
 ### 4.2 Domain Layer (Graph in memory)
 
-Same as v1 — `Graph.java` ported verbatim (no algorithm changes). Held by `GraphService` Spring bean and hydrated from Postgres in `@PostConstruct`. Re-uses adjacency list + reverse adjacency list.
+`Graph.java` holds the in-memory model; v2 has since extended it (Dijkstra composite scoring, watch topic entropy, cocoon score, explore re-rank). Held by the `GraphService` Spring bean and hydrated from Postgres on `@EventListener(ApplicationReadyEvent)` with `@Order(2)` — after `DataImportService` (`@Order(1)`, CSV import) and before `DemoDataService` (`@Order(3)`, demo seed). Re-uses adjacency list + reverse adjacency list.
 
 **Why hydrate to memory?** Algorithms (BFS, PageRank, LCC) touch every node/edge multiple times. Running them via SQL each request would be 10–100× slower. Postgres = source of truth, memory = compute layer.
 
@@ -212,8 +221,11 @@ Same as v1 — `Graph.java` ported verbatim (no algorithm changes). Held by `Gra
 | 1 | BFS Multi-Hop Recall | `Graph.findCandidateVideosByBFS(userId, depth)` | Candidate discovery |
 | 2 | Full-Graph PageRank | `Graph.computePageRank(20, 0.85)` | Global video authority |
 | 3 | Watch-Based PageRank | `Graph.computeWatchBasedPageRank(0.85, 50, 1e-6)` | User-centric PR |
-| 4 | Composite Scoring | `Graph.rankCandidatesByCompositeScore(uid, α, β, prMode)` | finalScore = α×(1/dist) + β×normPR |
-| 5 | LCC Echo Chamber | `Graph.computeLocalClusteringCoefficient(uid)` | Echo-chamber risk |
+| 4 | Composite Scoring | `Graph.rankCandidatesByCompositeScore(uid, α, β, γ, prMode, excludeWatched)` | finalScore = α×(1/dist) + β×normPR + γ×popularity (Dijkstra distance) |
+| 4b | Explore Re-rank | `Graph.rankCandidatesByExplore(...)` | Break-the-cocoon: 0.7×category-novelty + 0.3×composite |
+| 5 | LCC Echo Chamber | `Graph.computeLocalClusteringCoefficient(uid)` | Social closure |
+| 5b | Watch Topic Entropy | `Graph.computeWatchTopicEntropy(uid)` | Content concentration (over `category`) |
+| 5c | Cocoon Score | `Graph.computeCocoonScore / computeCocoonBreakdown / getCocoonLevel` | Composite echo-chamber risk = 0.5×LCC + 0.5×(1−topic entropy) |
 | 6 | Friend Recommendation | `FriendRecommendationService.recommend(uid)` | Co-watch CF |
 
 ### 4.4 Auth Layer
@@ -252,15 +264,19 @@ GET /api/auth/me
 | `/api/auth/me` | GET | ✅ | Current user info |
 | `/api/stats` | GET | ✅ | Graph + DB stats |
 | `/api/users` | GET | ✅ | All graph users (for friend lookup) |
-| `/api/recommend` | GET | ✅ | **No `userId` param** — uses JWT current user; supports `alpha`, `beta`, `prMode` |
+| `/api/recommend` | GET | ✅ | **No `userId` param** — uses JWT current user; `alpha`/`beta`/`gamma`, `prMode` (full\|watch), `mode` (foryou\|explore), `top`; already-watched videos excluded |
 | `/api/friends` | GET | ✅ | Existing friends + recommendations for current user |
 | `/api/friends` | POST | ✅ | Create a social edge (body: `{targetNodeId}`) |
 | `/api/friends` | DELETE | ✅ | Remove a social edge (body: `{targetNodeId}`) |
-| `/api/lcc` | GET | ✅ | Current user's personal LCC only |
-| `/api/lcc/admin` | GET | 🔒 ADMIN | All users' LCC (admin only) |
-| `/api/pagerank` | GET | ✅ | top= param |
+| `/api/lcc` | GET | ✅ | Current user's LCC + composite cocoon score + breakdown |
+| `/api/lcc/admin` | GET | 🔒 ADMIN | All users' LCC + cocoon score (admin only) |
+| `/api/pagerank` | GET | ✅ | `prMode`, `top=` params |
 | `/api/watch-history` | GET | ✅ | Current user's watch history |
-| `/api/watch-history` | POST | ✅ | Record a watch event (body: `{videoNodeId, videoId, title, channel}`) |
+| `/api/watch-history` | POST | ✅ | Record a watch event (body: `{videoNodeId, videoId, title, channel}`); creates idempotent user→video `watch` edge |
+| `/api/videos` | POST | ✅ | Creator publish from URL → video node + `uploaded` edge |
+| `/api/videos/upload` | POST | ✅ | Native file+thumb upload (multipart) → `source='native'` node |
+| `/api/videos/mine` | GET | ✅ | Current user's published videos |
+| `/media/**` | GET | ❌ | Static serving of uploaded files (HTTP Range, for `<video>`) |
 
 ### 4.6 Frontend Layer (Vue 3 SPA)
 
@@ -269,12 +285,13 @@ GET /api/auth/me
 | `/login` | `LoginPage.vue` | Public |
 | `/register` | `RegisterPage.vue` | Public |
 | `/app` | `AppShell.vue` | Guarded; wraps top nav + `<router-view>` |
-| `/app/recommend` | `RecommendTab.vue` | Default after login; sliders + prMode toggle + clickable cards |
+| `/app/recommend` | `RecommendTab.vue` | Default after login; sliders + prMode + For You/Explore toggle + clickable cards |
 | `/app/friends` | `FriendsTab.vue` | Existing friends + Follow/Unfollow buttons + recommendations |
-| `/app/overview` | `OverviewTab.vue` | Stat cards |
-| `/app/lcc` | `LccTab.vue` | Personal echo chamber card + admin all-users view |
+| `/app/overview` | `OverviewTab.vue` | Stat cards (**admin-only**, `meta.requiresAdmin`) |
+| `/app/lcc` | `LccTab.vue` | Echo Chamber: personal LCC + cocoon score breakdown + admin all-users view |
 | `/app/pagerank` | `PageRankTab.vue` | Clickable leaderboard (records watch history) |
 | `/app/watch-history` | `WatchHistoryTab.vue` | Table of watched videos |
+| `/app/upload` | `UploadTab.vue` | Publish (URL) / native file upload + "my videos" |
 
 **State management (Pinia):**
 - `useAuthStore()` — `token`, `currentUser`, `login()`, `register()`, `logout()`, persisted to localStorage
@@ -289,10 +306,12 @@ GET /api/auth/me
 
 ```
 1. INITIAL STARTUP (one-time per DB)
-   Postgres empty  →  Flyway runs V1__init.sql (schema)
-                  →  DataImportService scans app_users — if 0 nodes table empty:
-                          CSV (ProcessedData/mini_*.csv) → JPA batch insert
-                  →  GraphService.@PostConstruct loads nodes+edges from Postgres → Graph
+   Postgres empty  →  Flyway runs V1–V6 migrations (schema)
+                  →  DataImportService (@Order 1, CommandLineRunner): if nodes empty,
+                          CSV (ProcessedData/mini_*.csv) → JPA batch insert;
+                          else backfill category/published_at on existing video nodes
+                  →  GraphService (@Order 2, ApplicationReadyEvent) loads nodes+edges → Graph
+                  →  DemoDataService (@Order 3) seeds demo1/2/3 if missing
 
 2. REGISTER FLOW
    Browser /register → POST /api/auth/register
@@ -342,7 +361,7 @@ GET /api/auth/me
 | flyway-core | bundled (Spring Boot manages) | Migrations |
 | jjwt-api / jjwt-impl / jjwt-jackson | 0.12+ | JWT signing |
 | BCrypt | bundled (Spring Security) | Password hashing |
-| PostgreSQL | 16 | Database server |
+| PostgreSQL | 17 | Database server |
 | Node.js | 20+ | Frontend dev |
 | Vue | 3.4+ | SPA framework |
 | Vite | 5+ | Build tool |

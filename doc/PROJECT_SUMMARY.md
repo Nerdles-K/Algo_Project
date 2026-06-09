@@ -68,15 +68,18 @@ Algo_Project/
 │       │   └── auth.js                       # Pinia auth store（token + currentUser）
 │       ├── router/
 │       │   └── index.js                      # Vue Router 4 + 导航守卫
+│       ├── components/                       # VideoThumb / VideoModal / VideoMenu / AppCard / AppButton ...
 │       └── views/
 │           ├── LoginPage.vue                 # 登录页
 │           ├── RegisterPage.vue              # 注册页
-│           ├── AppShell.vue                  # 主框架（顶栏 + 5个 Tab 导航）
-│           ├── RecommendTab.vue              # 视频推荐（含缩略图 + 死链过滤）
-│           ├── OverviewTab.vue               # 图统计概览
-│           ├── FriendsTab.vue                # 好友推荐
-│           ├── LccTab.vue                    # 茧房检测（LCC）
-│           └── PageRankTab.vue               # PageRank 热度榜
+│           ├── AppShell.vue                  # 主框架（顶栏 + 7个 Tab 导航；Overview 仅管理员可见）
+│           ├── RecommendTab.vue              # 视频推荐（缩略图 + 死链过滤 + For You / Explore 模式切换）
+│           ├── FriendsTab.vue                # 好友推荐 / 关注管理
+│           ├── OverviewTab.vue               # 图统计概览（管理员）
+│           ├── LccTab.vue                    # 茧房检测（Echo Chamber：LCC + 复合茧房分）
+│           ├── PageRankTab.vue               # PageRank 热度榜
+│           ├── WatchHistoryTab.vue           # 观看历史
+│           └── UploadTab.vue                 # 创作者发布 / 原生视频上传
 │
 ├── scripts/                          ← 数据准备/算法原型脚本 + 图可视化工具
 │   ├── make_graph_html.py            #   读 CSV 生成独立交互式可视化 graph.html
@@ -179,12 +182,21 @@ Algo_Project/
 ### 数据库（v2）
 
 - **PostgreSQL 17**（本地 brew 安装，DB: `synchplay`，user: `synchplay`）
-- Flyway 管理 Schema（`V1`~`V4`），共四张业务表：
+- Flyway 管理 Schema（`V1`~`V6`），共四张业务表：
   - `app_users`：注册用户账号（username, email, password_hash, graph_node_id, `role` USER/ADMIN — V3）
-  - `nodes`：图节点（483 行起；新增 `source`('youtube'/'native')、`media_path`、`thumb_path` — V4 支持原生上传）
+  - `nodes`：图节点（483 行起）。增量列：`source`('youtube'/'native')、`media_path`、`thumb_path`（V4 原生上传）；`tags`（V5 题材标签，喂给 similar 边）；`category`、`published_at`（V6，来自 USvideos 的 `category_id`→`US_category_id.json` 映射 + 真实发布时间，驱动内容多样性信号）
   - `edges`：图边（945 起；新增 `watch`(观看)、`uploaded`(发布) 边类型）
   - `watch_history`：观看记录（user_id, video_node_id, video_id, title, channel, watched_at — V2）
-- `DataImportService`（CommandLineRunner）启动时幂等地将 CSV 导入 `nodes`/`edges`；若已有数据则跳过
+
+| 迁移 | 内容 |
+|------|------|
+| V1 | 基础三表 `nodes` / `edges` / `app_users` |
+| V2 | `watch_history` 观看记录表 |
+| V3 | `app_users.role`（USER/ADMIN） |
+| V4 | `nodes.source` / `media_path` / `thumb_path`（原生上传） |
+| V5 | `nodes.tags`（题材标签） |
+| V6 | `nodes.category` / `published_at`（题材类别 + 发布时间） |
+- `DataImportService`（CommandLineRunner）启动时幂等地将 CSV 导入 `nodes`/`edges`；若已有数据则跳过。此外会**回填**（backfill）旧库中缺失 `category`/`published_at` 的视频节点（从 CSV 补齐），让 V6 的内容多样性信号在已存在的数据库上也能生效
 - `GraphService` 在 `ApplicationReadyEvent` 时将 Postgres 数据加载到内存 `Graph` 对象，耗时约 10 ms
 
 ---
@@ -387,49 +399,62 @@ Step 6: 降序 Top N
 - 引入 **Dijkstra** 替换 BFS：满足"使用 edge weight"的承诺。
 - 加入 **popularity 特征**：满足"考虑更多特征"的承诺。
 - 前端三滑块（α/β/γ）+ 卡片新增 popularity 徽章，可视化每个子分对最终排序的贡献。
+- 归一化细节：`distanceScore = (1/距离) / (1/最近距离)`，把距离子分压到 0~1，与 normPR、popularity 同量纲后再加权（否则距离子分量级失衡）。
+
+**For You vs. Explore 两种推荐模式**（`/api/recommend?mode=foryou|explore`）：
+- **For You**（默认）：上面的综合打分，按"相关度"排序。
+- **Explore**（破茧）：`Graph.rankCandidatesByExplore(...)` 对**同一批可达候选**重排，奖励用户很少/从未观看的内容**类别**（category）：
+  ```
+  探索分 = 0.7 · 类别新颖度 + 0.3 · 归一化综合分
+  类别新颖度 = 1 − p(该类别在用户历史中的占比)   # 从未看过的类别 = 1.0
+  ```
+  无观看历史的用户回退到接近综合分的顺序（还没有"茧"可破）。这把"信息茧房"从一个**指标**变成了一个**可操作的产品功能**。
 
 ---
 
-### 算法 5：LCC 局部聚类系数 —— 信息茧房检测
+### 算法 5：信息茧房检测 —— LCC + 复合茧房分（Cocoon Score）
 
-**目的**：量化用户社交圈的"封闭程度"，LCC 越高说明朋友们互相都认识，信息茧房风险越大。
+前端 **Echo Chamber** Tab 展示。底层基于 LCC，但 v2 把它升级为一个可解释、可个性化的**复合茧房分**。
 
-**方法**：`Graph.computeLocalClusteringCoefficient(userNodeId)`（用户仅看到自己的 LCC；管理员可通过 `/api/lcc/admin` 查看全部用户）
+#### 5a. LCC 局部聚类系数（社交封闭度）
 
-**公式：**
+**方法**：`Graph.computeLocalClusteringCoefficient(userNodeId)`
+
 ```
 LCC(u) = 2 × E_neighbors / (k × (k - 1))
+k = u 的社交邻居数；E_neighbors = 邻居之间实际存在的 social 边数
+```
+- 直观：LCC≈0 → 好友互不相识（多元）；LCC=1 → 好友抱团（信息来源单一）。
 
-k = u 的社交邻居数
-E_neighbors = 这些邻居之间实际存在的 social 边数
+#### 5b. 观看主题熵（内容单一度）
+
+**方法**：`Graph.computeWatchTopicEntropy(userNodeId)` —— 基于 V6 的视频 `category`
+
+```
+H = −Σ p_i · log2(p_i)，再除以 log2(类别数) 归一化到 [0,1]
+内容单一度 = 1 − 归一化主题熵   # 只看一类 → 接近 1；类别均匀 → 接近 0
 ```
 
-**直观理解：**
+#### 5c. 复合茧房分
+
+**方法**：`Graph.computeCocoonScore(userNodeId)` / `computeCocoonBreakdown(...)` / `getCocoonLevel(...)`
+
 ```
-情况A：开放社交圈（LCC ≈ 0，低风险）
-  你的朋友小明、小红、小刚互不相识 → 来自不同圈子 → 多元信息
-
-情况B：信息茧房（LCC = 1，高风险）
-  小明↔小红↔小刚↔小明，三人互相认识 → 信息来源单一
+茧房分 = (0.5 · 社交封闭度 + 0.5 · 内容单一度) / 实际计入的权重和
 ```
+- 仅计入**有数据**的信号再归一化：社交需 ≥2 个社交邻居，内容需有观看历史；孤立用户返回 0（避免把"缺数据"误判为茧房）。
+- `breakdown` 返回 `socialClosure` 与 `contentConcentration` 两个分轴，前端拆解展示。
+- 原先的"候选 PR 集中度"信号已移除——它对每个用户几乎是全局常数，不具个性化区分度。
 
-**风险分级：**
+**分级**（茧房分 / LCC 同口径）：
 
-| LCC 范围 | 风险等级 | 前端显示 |
-|----------|---------|---------|
-| ≥ 0.7 | 高风险 | 红色 |
-| 0.4 – 0.7 | 中风险 | 黄色 |
-| < 0.4 | 低风险 | 绿色 |
+| 分值 | 等级 | 前端 |
+|------|------|------|
+| ≥ 0.7 | high（高风险） | 红色 |
+| 0.4 – 0.7 | medium（中风险） | 黄色 |
+| < 0.4 | low（低风险） | 绿色 |
 
-**当前数据实测：**
-
-| 指标 | 数值 |
-|------|------|
-| 有社交连接的用户 | 22 人 |
-| 平均 LCC | 0.8557 |
-| 高风险（LCC ≥ 0.7） | 17 人 |
-| 中风险（0.4–0.7） | 5 人 |
-| 低风险（< 0.4） | 0 人 |
+普通用户只看自己的茧房分（`/api/lcc`）；管理员可通过 `/api/lcc/admin` 查看全部用户。
 
 ---
 
@@ -482,12 +507,12 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 |------|------|------|---------|
 | `/api/stats` | GET | — | 图统计（节点数、边数、密度等） |
 | `/api/users` | GET | — | 全部 100 个用户列表 |
-| `/api/recommend` | GET | `alpha`(0.5), `beta`(0.3), `gamma`(0.2), `prMode`(full\|watch), `top`(20) | Dijkstra + PageRank + popularity 综合打分；当前登录用户自动作为目标 |
+| `/api/recommend` | GET | `alpha`(0.5), `beta`(0.3), `gamma`(0.2), `prMode`(full\|watch), `mode`(foryou\|explore), `top`(20) | Dijkstra + PageRank + popularity 综合打分；`mode=explore` 改为类别新颖度重排（破茧）；已看过的视频自动剔除；当前登录用户自动作为目标 |
 | `/api/friends` | GET | `top`(10) | 好友推荐 + 已有好友 |
 | `/api/friends` | POST | body: `{targetNodeId}` | 关注好友（创建 social 边） |
 | `/api/friends` | DELETE | body: `{targetNodeId}` | 取消关注（删除 social 边） |
-| `/api/lcc` | GET | — | 当前用户个人 LCC + 风险等级 |
-| `/api/lcc/admin` | GET | — | [ADMIN] 全部用户 LCC |
+| `/api/lcc` | GET | — | 当前用户个人 LCC + 复合茧房分 + 分轴拆解 + 等级 |
+| `/api/lcc/admin` | GET | — | [ADMIN] 全部用户 LCC + 茧房分 |
 | `/api/pagerank` | GET | `prMode`(full\|watch), `top`(15) | 视频 PageRank 热度排行 |
 | `/api/watch-history` | GET | `limit`(50) | 当前用户观看历史 |
 | `/api/watch-history` | POST | body: `{videoNodeId, videoId, title, channel}` | 记录一次观看；同时在图+`edges`表建 user→video `watch` 边（幂等），闭合反馈回路 |
@@ -500,16 +525,19 @@ Step 4: 按共同数降序排列，排除自己，返回 Top N
 
 ## 前端功能说明（v2）
 
-| 页面/Tab | 路由 | 功能 |
-|---------|------|------|
-| 登录页 | `/login` | username + password；登录后跳转 `/app/recommend` |
-| 注册页 | `/register` | username + email + password（含确认）；注册后自动登录 |
-| 视频推荐 | `/app/recommend` | α/β/γ 滑块调权重，prMode 切换，视频卡片含 YouTube 缩略图；点击自动记录观看历史 |
-| 图统计 | `/app/overview` | 节点数、边数、平均度等 9 张统计卡片 |
-| 好友 | `/app/friends` | 已有好友列表（Unfollow 按钮）+ 推荐好友列表（Follow 按钮） |
-| 茧房检测 | `/app/lcc` | 个人茧房等级卡片 + 可视化条形图；管理员可加载全局用户表格 |
-| PageRank | `/app/pagerank` | Top N 视频热度榜，含缩略图、频道、播放量、比例条形图；点击自动记录观看历史 |
-| 观看历史 | `/app/watch-history` | 当前用户已观看视频列表（缩略图、标题、频道、时间） |
+前端主框架 `AppShell.vue` 提供 **7 个 Tab**（Overview 仅管理员可见）：
+
+| 页面/Tab | 路由 | 权限 | 功能 |
+|---------|------|------|------|
+| 登录页 | `/login` | 公开 | username + password；登录后跳转 `/app/recommend` |
+| 注册页 | `/register` | 公开 | username + email + password（含确认）；注册后自动登录 |
+| 视频推荐 | `/app/recommend` | 登录 | α/β/γ 滑块调权重，prMode 切换，**For You / Explore 模式切换**；卡片含缩略图（原生上传可内嵌播放）；点击自动记录观看历史 |
+| 好友 | `/app/friends` | 登录 | 已有好友列表（Unfollow）+ 推荐好友列表（Follow） |
+| 图统计 Overview | `/app/overview` | **管理员** | 节点数、边数、平均度等统计卡片 |
+| 茧房检测 Echo Chamber | `/app/lcc` | 登录 | 个人 LCC + 复合茧房分 + 社交/内容分轴拆解条形图；管理员可加载全局用户表格 |
+| PageRank | `/app/pagerank` | 登录 | Top N 视频热度榜，含缩略图、频道、播放量、比例条形图；点击自动记录观看历史 |
+| 观看历史 History | `/app/watch-history` | 登录 | 当前用户已观看视频列表（缩略图、标题、频道、时间） |
+| 上传 Upload | `/app/upload` | 登录 | 创作者发布：YouTube 链接发布 / 原生视频文件+封面上传；列出"我发布的"视频 |
 
 **安全机制**：
 - 所有 `/app/*` 路由有导航守卫，未登录自动跳转 `/login`
@@ -588,14 +616,18 @@ npm run dev
 | PageRank（全图） | 迭代热度计算，20轮，d=0.85 | ✅ |
 | PageRank（Watch） | 收敛式，仅 watch 边，tol=1e-6 | ✅ |
 | 综合打分（升级版） | α·(1/Dijkstra距离) + β·PageRank + γ·popularity | ✅ |
-| LCC 茧房检测 | 全用户 LCC + 风险分级 | ✅ |
+| Explore 破茧重排 | 类别新颖度 0.7 + 综合分 0.3 | ✅ |
+| 复合茧房分 | LCC（社交封闭）+ 观看主题熵（内容单一） | ✅ |
 | 好友推荐 | 共同观看协同过滤 | ✅ |
-| PostgreSQL 数据库 | Flyway 建表 + 幂等导入 | ✅ |
-| Spring Boot 后端 | 7 个 REST 端点 + CORS | ✅ |
-| JWT 认证系统 | 注册/登录/Token 过滤 | ✅ |
-| Vue 3 前端 | 5 个 Tab + 登录注册 + 路由守卫 | ✅ |
+| 观看历史闭环 | 点击记录 watch 边，反哺图与推荐 | ✅ |
+| 原生视频上传 | 文件+封面上传，/media/** 流播放 | ✅ |
+| PostgreSQL 数据库 | Flyway V1–V6 + 幂等导入 + 回填 | ✅ |
+| Spring Boot 后端 | 11 个 Controller / REST 端点组 + CORS | ✅ |
+| JWT 认证系统 + 角色 | 注册/登录/Token 过滤 + USER/ADMIN | ✅ |
+| Vue 3 前端 | 7 个 Tab + 登录注册 + 路由守卫（含管理员守卫） | ✅ |
 | 缩略图 + 死链过滤 | naturalWidth ≤ 120 检测不可用视频 | ✅ |
 | Demo 账号预置 | demo1/2/3 启动时自动创建 | ✅ |
 | 一键启动脚本 | dev.sh 并发启动前后端 | ✅ |
-| README | 新克隆者快速上手指南 | ⏳ |
-| 演示幻灯片 | 8–10 张（算法 + 架构 + Demo） | ⏳ |
+| 云端部署 | 单 Docker 镜像（前后端合一），见 `DEPLOY.md` | ✅ |
+| README | 新克隆者快速上手指南 | ✅ |
+| 演示幻灯片 | `doc/slides.html` + `SLIDES_OUTLINE.md` | ✅ |

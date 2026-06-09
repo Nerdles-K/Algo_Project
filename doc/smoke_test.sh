@@ -78,9 +78,13 @@ STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/stats" \
   -H "Authorization: Bearer $TOKEN")
 check_status "GET /api/stats" "200" "$STATUS"
 
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/recommend?alpha=0.6&beta=0.4&prMode=full&top=10" \
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/recommend?alpha=0.5&beta=0.3&gamma=0.2&prMode=full&mode=foryou&top=10" \
   -H "Authorization: Bearer $TOKEN")
-check_status "GET /api/recommend" "200" "$STATUS"
+check_status "GET /api/recommend (foryou)" "200" "$STATUS"
+
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/recommend?mode=explore&top=10" \
+  -H "Authorization: Bearer $TOKEN")
+check_status "GET /api/recommend (explore)" "200" "$STATUS"
 
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/friends?top=10" \
   -H "Authorization: Bearer $TOKEN")
@@ -97,6 +101,14 @@ check_status "GET /api/pagerank (full)" "200" "$STATUS"
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/pagerank?prMode=watch&top=15" \
   -H "Authorization: Bearer $TOKEN")
 check_status "GET /api/pagerank (watch)" "200" "$STATUS"
+
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/watch-history?limit=20" \
+  -H "Authorization: Bearer $TOKEN")
+check_status "GET /api/watch-history" "200" "$STATUS"
+
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/videos/mine" \
+  -H "Authorization: Bearer $TOKEN")
+check_status "GET /api/videos/mine" "200" "$STATUS"
 
 # ── Demo accounts ─────────────────────────────────────────────────────────────
 echo ""

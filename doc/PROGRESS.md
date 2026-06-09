@@ -91,7 +91,17 @@
 | CI | GitHub Actions: backend `mvn test` + frontend build on push/PR | ✅ 2026-06-05 |
 | Test coverage | JWT filter + graph edge + watch-loop + YouTube-id tests → **47 tests** (was 29) | ✅ 2026-06-06 |
 | v1 removed | `backend/` + `frontend/` deleted (recoverable from git history); prototype Python scripts moved to `scripts/` | ✅ 2026-06-06 |
-| Algorithm + frontend backlogs | `doc/ALGORITHM_ASSIGNMENTS.md` (members B/C) + `doc/FRONTEND_IMPROVEMENTS.md` | ✅ 2026-06-06 |
+| Algorithm + frontend backlogs | Working backlogs tracked during development; outdated PRD / frontend-improvement specs since removed | ✅ 2026-06-06 |
+
+### Post-presentation work (2026-06-07 / 09)
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| **Content-diversity signal** | Video `category` (USvideos `category_id` → `US_category_id.json`) + `published_at`; Flyway V5 `tags`, V6 `category`/`published_at`; `DataImportService` backfills existing DBs | ✅ 2026-06-08 |
+| **Composite cocoon score** | `Graph.computeCocoonScore` = 0.5×LCC (social closure) + 0.5×(1−watch-topic-entropy) (content concentration); breakdown + level surfaced in Echo Chamber tab; corrected computation | ✅ 2026-06-08 |
+| **Explore (break-the-cocoon) mode** | `/api/recommend?mode=foryou\|explore`; `Graph.rankCandidatesByExplore` rewards never-watched categories (0.7 novelty + 0.3 composite); For You/Explore toggle in RecommendTab | ✅ 2026-06-09 |
+| Cloud deployment | Single Docker image (frontend bundled into Spring Boot static); `DEPLOY.md`, `Dockerfile` | ✅ 2026-06-08 |
+| Sort-by-update / upload polish | Upload list ordering + native-upload UX fixes | ✅ 2026-06-09 |
 
 ---
 

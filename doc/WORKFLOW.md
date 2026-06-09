@@ -184,8 +184,8 @@ psql -U synchplay -d synchplay -c "DROP TABLE IF EXISTS app_users, edges, nodes 
 ## 4. Git Workflow
 
 ### Branching
-- `main` — always deployable v1; updated only after v2 milestones merge
-- `feature/v2-<area>` — e.g., `feature/v2-auth`, `feature/v2-recommend-port`
+- `main` — always deployable; now the v2 (Spring Boot + Vue) codebase
+- `feature/<area>` — e.g., `feature/auth`, `feature/explore-mode`
 
 ### Commit Message Convention
 ```
@@ -227,10 +227,9 @@ refactor(v2): extract DTO records
 
 ### Add a new Vue page/tab
 ```
-1. Create src/components/SomeTab.vue (if it's a tab under /app)
-   or src/pages/SomePage.vue (if it's a full route)
-2. Register in src/router/index.js
-3. Add link in AppShell.vue (top nav)
+1. Create src/views/SomeTab.vue (tabs under /app and full pages both live in src/views/)
+2. Register in src/router/index.js (add meta.requiresAdmin for admin-only tabs)
+3. Add link in AppShell.vue (top nav; use adminOnly: true to gate it)
 4. Add API call in src/api/<resource>.js using shared client
 5. npm run dev → manual test
 ```

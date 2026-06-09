@@ -14,7 +14,7 @@ Build a production-style video recommendation platform that leverages social gra
 |-------|--------|-------|
 | Frontend | **Vue 3 + Vite + Vue Router + Pinia** | SPA with client-side routing; Pinia for auth/user state |
 | Backend | **Spring Boot 3.x + Maven + Java 17** | REST API, JPA, Spring Security |
-| Database | **PostgreSQL 16** | JDBC via Spring Data JPA |
+| Database | **PostgreSQL 17** | JDBC via Spring Data JPA / JdbcTemplate |
 | Auth | **JWT (jjwt library)** | Stateless `Authorization: Bearer <token>` header |
 | Algorithms | Ported from v1 `Graph.java` into a `GraphService` Spring bean | All 6 algorithms preserved |
 | Build/Run | `mvn spring-boot:run` (backend) + `npm run dev` (frontend) | |
@@ -44,7 +44,7 @@ Build a production-style video recommendation platform that leverages social gra
 | FR-B.1 | **PostgreSQL schema** with tables: `app_users`, `nodes`, `edges`, indexed on FK columns | High | ✅ (Postgres 17.5; schema in V1__init.sql) |
 | FR-B.2 | **One-time CSV → Postgres import** via Spring CommandLineRunner on first startup (idempotent: skip if tables non-empty) | High | ✅ (DataImportService; verified 500→483 dedup + 945 edges import) |
 | FR-B.3 | **JPA entities**: `AppUser`, `GraphNode`, `GraphEdge` with appropriate relationships | High | ✅ partially: `AppUser` JPA; nodes/edges use `JdbcTemplate` directly (lighter, no per-row entity overhead for read-heavy graph load) |
-| FR-B.4 | **Flyway migration scripts** for schema versioning (V1__init.sql) | Medium | ✅ |
+| FR-B.4 | **Flyway migration scripts** for schema versioning (V1 base → V6: watch_history, role, native-video columns, tags, category/published_at) | Medium | ✅ |
 | FR-B.5 | **HikariCP pool** with size 10 (Spring Boot default) | Low | ✅ (default) |
 
 ### FR-C: Recommendation Engine (PORTED)
@@ -56,21 +56,24 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-C.1 | BFS Candidate Recall (2/3-hop, undirected, visited HashSet) | High | ✅ |
 | FR-C.2 | Full-Graph PageRank (d=0.85, 20 iter, sink handling) | High | ✅ |
 | FR-C.3 | Watch-Based PageRank (convergence-based, tol=1e-6) | High | ✅ |
-| FR-C.4 | Composite Scoring `α×(1/dist) + β×normPR` with dual `prMode` | High | ✅ |
-| FR-C.5 | `GET /api/recommend?alpha=&beta=&prMode=` — uses **current authenticated user** as target (no need to pass userId) | High | ✅ |
+| FR-C.4 | Composite Scoring `α×(1/dist) + β×normPR + γ×popularity` (Dijkstra distance) with dual `prMode` | High | ✅ |
+| FR-C.5 | `GET /api/recommend?alpha=&beta=&gamma=&prMode=&mode=` — uses **current authenticated user** as target (no need to pass userId) | High | ✅ |
 | FR-C.6 | LCC computation + Echo Chamber endpoint | Medium | ✅ |
 | FR-C.7 | Friend Recommendation (collaborative filtering) | Medium | ✅ |
 | FR-C.8 | **Friend edge creation/deletion**: `POST /api/friends` creates a social edge (persisted to DB + in-memory graph); `DELETE /api/friends` removes it | Medium | ✅ (2026-05-18) |
 | FR-C.9 | **Exclude already-watched**: `/api/recommend` and `/api/friends/{id}/recommend` drop videos the target has a direct `watch` edge to, so watched videos never re-surface and the feed shifts as you watch | High | ✅ (2026-06-06) |
 | FR-C.10 | **Creator publish**: `POST /api/videos` registers a new `video` node + `creator→video` "uploaded" edge (DB + in-memory graph) from a real YouTube link; `GET /api/videos/mine` lists the user's published videos. New nodes start cold (reachable only via the creator's edges) and accrue reach/PageRank organically | Medium | ✅ (2026-06-06) |
 | FR-C.11 | **Native video upload**: `POST /api/videos/upload` (multipart) stores a real video file + browser-captured thumbnail under `./uploads`, served at `/media/**` with HTTP Range; node carries `source='native'` and is played in-app via an HTML5 `<video>` modal. Native + YouTube videos coexist in the graph and all tabs | Medium | ✅ (2026-06-06) |
+| FR-C.12 | **Content-diversity signal**: video `category` (from USvideos `category_id` via `US_category_id.json`) + `published_at` stored on nodes (Flyway V5 `tags`, V6 `category`/`published_at`; `DataImportService` backfills existing DBs) | Medium | ✅ (2026-06-08) |
+| FR-C.13 | **Composite cocoon score**: `computeCocoonScore` = 0.5×LCC (social closure) + 0.5×(1−watch-topic-entropy) (content concentration); only signals with data are counted and re-normalised; `/api/lcc` returns score + breakdown + level | Medium | ✅ (2026-06-08) |
+| FR-C.14 | **Explore (break-the-cocoon) mode**: `GET /api/recommend?mode=explore` re-ranks the same reachable candidates by category novelty (0.7×novelty + 0.3×composite), surfacing topics the user rarely watches; `mode=foryou` is the default relevance ranking | Medium | ✅ (2026-06-09) |
 
 ### FR-D: Frontend (REWRITE)
 
 | ID | Requirement | Priority | Status |
 |----|------------|----------|--------|
 | FR-D.1 | **Vue 3 + Vite project scaffold** with `<script setup>` SFC syntax | High | ✅ |
-| FR-D.2 | **Vue Router**: `/login`, `/register`, `/app` (guarded), `/app/recommend`, `/app/friends`, `/app/overview`, `/app/lcc`, `/app/pagerank` | High | ✅ |
+| FR-D.2 | **Vue Router**: `/login`, `/register`, `/app` (guarded), `/app/recommend`, `/app/friends`, `/app/overview` (admin-only), `/app/lcc`, `/app/pagerank`, `/app/watch-history`, `/app/upload` | High | ✅ |
 | FR-D.3 | **Pinia auth store**: `token`, `currentUser`; persists to localStorage | High | ✅ |
 | FR-D.4 | **API client (axios)** with interceptor: auto-inject Bearer token, redirect to `/login` on 401 | High | ✅ |
 | FR-D.5 | **Login page**: username + password, "register" link, error handling | High | ✅ |
@@ -82,6 +85,8 @@ All 6 algorithms preserved from v1, exposed via authenticated REST endpoints. Th
 | FR-D.11 | **LCC personal view**: Each user sees only their own echo chamber level; admin users can load the all-users table via `/api/lcc/admin` | Medium | ✅ (2026-05-18) |
 | FR-D.12 | **Friends tab with Follow/Unfollow**: Existing friends shown with Unfollow button; recommended friends with Follow button; API calls persist edges | Medium | ✅ (2026-05-18) |
 | FR-D.13 | **Upload tab**: `/app/upload` — creator form (YouTube link, title, channel, initial views/likes) posts to `/api/videos`; below it a "My Videos" grid loaded from `/api/videos/mine` | Medium | ✅ (2026-06-06) |
+| FR-D.14 | **Echo Chamber cocoon view**: LCC tab shows the composite cocoon score with its social-closure / content-concentration breakdown bars | Medium | ✅ (2026-06-08) |
+| FR-D.15 | **For You / Explore toggle**: RecommendTab lets the user switch between relevance (`foryou`) and break-the-cocoon (`explore`) ranking | Medium | ✅ (2026-06-09) |
 
 ### FR-E: System Operations
 

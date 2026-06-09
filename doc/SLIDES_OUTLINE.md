@@ -33,14 +33,14 @@
 
 | Node Type | Count | Attributes |
 |-----------|-------|------------|
-| User | ~50 | userId |
-| Video | ~450 | videoId, title, channel, views, likes, tags |
+| User | 100 | userId |
+| Video | 383 | videoId, title, channel, views, likes, tags, category, published_at |
 
 | Edge Type | Meaning |
 |-----------|---------|
 | user → user | social follow |
-| user → video | watch history |
-| video → video | related video |
+| user → video | watch history / uploaded |
+| video → video | similar (same channel) |
 
 *Data sourced from YouTube API, preprocessed to CSV, loaded into PostgreSQL on startup.*
 
@@ -114,19 +114,25 @@ popularity(v) = 0.6 · log(1+views)/log(1+maxViews)
 
 ---
 
-## Slide 7 — Algorithm 4 & 5: LCC + Friend Recommendation
+## Slide 7 — Algorithm 4 & 5: Cocoon Score + Friend Recommendation
 
-**Largest Connected Component (LCC) — Echo Chamber Detection**
+**Echo Chamber Detection — Composite Cocoon Score**
 
-- Union-Find identifies connected components
-- LCC size relative to total = echo chamber risk score
-- Frontend shows: component count, LCC %, risk level (Low / Medium / High)
+```
+cocoon = 0.5 · socialClosure  + 0.5 · contentConcentration
+         (Local Clustering      (1 − watch-topic entropy
+          Coefficient, LCC)       over video categories)
+```
+- **LCC** = `2·E_neighbors / (k·(k−1))` — do your friends all know each other?
+- **Content concentration** — do you only watch a few topic categories?
+- Only signals with data are counted, then re-normalized; level = Low / Medium / High
+- **Break-the-cocoon "Explore" mode**: re-ranks recommendations toward never-watched categories
 
-**Friend Recommendation (BFS variant)**
+**Friend Recommendation (collaborative filtering)**
 
-- For each candidate user node reachable within 2 hops
-- Score = number of shared neighbors (Jaccard-style)
-- Returns ranked list: "People you may know"
+- For each video the user watched, find the other users who watched it too
+- Score = number of co-watched videos → "People you may know"
+- Returns ranked list, excluding existing friends
 
 ---
 
@@ -135,19 +141,20 @@ popularity(v) = 0.6 · log(1+views)/log(1+maxViews)
 ```
 ┌──────────────────────────────────────────────────┐
 │  Vue 3 Frontend  (Vite :5173)                    │
-│  Login · Register · 5 algorithm tabs             │
+│  Login · Register · 7 tabs (Overview admin-only) │
 │  Pinia auth store · axios Bearer interceptor     │
 └────────────────┬─────────────────────────────────┘
                  │ HTTPS (JWT Bearer token)
 ┌────────────────▼─────────────────────────────────┐
 │  Spring Boot 3.3 Backend  (:8080)                │
-│  Spring Security + JWT · 7 REST endpoints        │
+│  Spring Security + JWT · 11 REST controllers     │
 │  In-memory Graph (483 nodes, 945 edges)          │
 └──────────┬──────────────────────────┬────────────┘
-           │ JPA (Flyway migrations)  │ CSV import (boot)
+           │ JPA / JdbcTemplate        │ CSV import (boot)
+           │ (Flyway V1–V6)            │
 ┌──────────▼──────────────────────────▼────────────┐
-│  PostgreSQL  (synchplay DB)                      │
-│  app_users · nodes · edges                       │
+│  PostgreSQL 17  (synchplay DB)                   │
+│  app_users · nodes · edges · watch_history       │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -159,12 +166,13 @@ popularity(v) = 0.6 · log(1+views)/log(1+maxViews)
 
 1. `./dev.sh` — start backend + frontend in one command
 2. **Register** a new account → see JWT auth in action
-3. **Overview tab** — 9 live graph statistics
-4. **Recommend tab** — adjust α/β slider, toggle PageRank mode, see personalized cards
-5. **Friends tab** — BFS-based "people you may know"
-6. **Echo Chamber tab** — LCC risk assessment
-7. **PageRank tab** — global top videos
-8. Login as `demo2` — show different recommendations for different graph position
+3. **Recommend tab** — adjust α/β/γ sliders, toggle PageRank mode, **switch For You → Explore** to break the cocoon
+4. **Friends tab** — co-watch "people you may know", Follow/Unfollow
+5. **Echo Chamber tab** — composite cocoon score + social/content breakdown
+6. **PageRank tab** — global top videos
+7. **Upload tab** — publish a YouTube link or upload a native video file, watch it in-app
+8. Login as `demo1` (ADMIN) — show the admin-only **Overview** + all-users echo-chamber table
+9. Login as `demo2` — different recommendations for a different graph position
 
 ---
 
