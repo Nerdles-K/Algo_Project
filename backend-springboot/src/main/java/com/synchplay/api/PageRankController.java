@@ -24,14 +24,14 @@ public class PageRankController {
 
     @GetMapping
     public Map<String, Object> pagerank(
-            @RequestParam(defaultValue = "full") String prMode,
-            @RequestParam(defaultValue = "15") int top) {
+            @RequestParam(defaultValue = "80") int top) {
 
         Graph g = graphService.getGraph();
-        LinkedHashMap<Node, Double> videoScores = "watch".equals(prMode)
-            ? g.getVideoWatchBasedPageRankScores(0.85, 50, 1e-6)
-            : g.getVideoPageRankScores(20, 0.85);
+        // Always Watch-Based PageRank (collective watch attention ≈ "trending").
+        LinkedHashMap<Node, Double> videoScores = g.getVideoWatchBasedPageRankScores(0.85, 50, 1e-6);
 
+        // `top` is an over-fetched candidate pool: the frontend drops dead/unplayable
+        // videos (stale YouTube thumbnails) client-side, then slices to the display count.
         List<Map<String, Object>> items = videoScores.entrySet().stream()
             .limit(top)
             .map(e -> {
@@ -50,7 +50,7 @@ public class PageRankController {
             .toList();
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("prMode", prMode);
+        result.put("prMode", "watch");
         result.put("count", items.size());
         result.put("videos", items);
         return result;

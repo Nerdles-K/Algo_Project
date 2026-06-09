@@ -3,15 +3,16 @@ import { ref, computed, onMounted } from 'vue'
 import client from '../api/client'
 import { thumbSrc, isNative, openVideo } from '../utils/video'
 
-const prMode = ref('full')
-const top = ref(15)
+const top = ref(15)            // how many to DISPLAY
+const POOL = 80                // over-fetch candidates so dead videos can be replaced
 const loading = ref(false)
 const error = ref('')
 const result = ref(null)
 const failedIds = ref({})
 
+// Drop dead/unplayable videos, then slice to the chosen display count.
 const visibleVideos = computed(() =>
-  result.value?.videos.filter(v => !failedIds.value[v.id]) ?? []
+  (result.value?.videos.filter(v => !failedIds.value[v.id]) ?? []).slice(0, top.value)
 )
 
 async function load() {
@@ -19,7 +20,7 @@ async function load() {
   error.value = ''
   failedIds.value = {}
   try {
-    const res = await client.get('/api/pagerank', { params: { prMode: prMode.value, top: top.value } })
+    const res = await client.get('/api/pagerank', { params: { top: POOL } })
     result.value = res.data
   } catch (e) {
     error.value = 'Failed to load PageRank data'
@@ -56,14 +57,11 @@ function onThumbError(v) {
   <div>
     <h2>PageRank — Top Videos</h2>
 
+    <p class="subtitle" style="color:var(--text-dim);margin:-8px 0 20px;font-size:14px">
+      Ranked by Watch-Based PageRank — collective watch attention across the graph.
+    </p>
+
     <div class="controls" style="margin-bottom:20px">
-      <div style="display:flex;align-items:center;gap:8px">
-        <label>Mode</label>
-        <select v-model="prMode" style="width:200px">
-          <option value="full">Full-graph PageRank</option>
-          <option value="watch">Watch-based PageRank</option>
-        </select>
-      </div>
       <div style="display:flex;align-items:center;gap:8px">
         <label>Top</label>
         <select v-model.number="top" style="width:80px">
