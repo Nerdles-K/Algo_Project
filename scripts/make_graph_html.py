@@ -86,8 +86,12 @@ def _psql_csv(psql, conn, query):
     out = subprocess.run(
         [psql, "-h", conn["host"], "-p", conn["port"], "-U", conn["user"],
          "-d", conn["db"], "-tAc", f"COPY ({query}) TO STDOUT WITH CSV HEADER"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
         env={**os.environ, "PGPASSWORD": conn["password"]})
+
     if out.returncode != 0:
         sys.exit(f"✗ psql 执行失败:\n{out.stderr.strip()}")
     return list(csv.DictReader(io.StringIO(out.stdout)))
