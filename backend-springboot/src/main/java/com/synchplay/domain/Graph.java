@@ -636,6 +636,57 @@ public class Graph {
         return results;
     }
 
+    /**
+     * Explore ranking — re-scores the SAME reachable candidates as the composite
+     * recommender, but rewards content CATEGORIES the user rarely (or never)
+     * watches, surfacing material outside their usual topics to counter the
+     * information cocoon. Category novelty dominates (70%); the standard composite
+     * score is blended in (30%) only to keep picks reachable/relevant rather than
+     * random. Users with no watch history fall back toward composite order
+     * (nothing to "break out of" yet).
+     */
+    public List<VideoScore> rankCandidatesByExplore(
+            String userNodeId, double alpha, double beta, double gamma, String prMode, boolean excludeWatched) {
+
+        List<VideoScore> base = rankCandidatesByCompositeScore(userNodeId, alpha, beta, gamma, prMode, excludeWatched);
+        if (base.isEmpty()) return base;
+
+        // User's watched-category distribution p(category) — same source as topic entropy.
+        Map<String, Integer> categoryCount = new HashMap<>();
+        int totalWatched = 0;
+        for (Edge edge : getOutEdges(userNodeId)) {
+            if ("watch".equals(edge.getEdgeType()) && edge.getTarget().isVideo()) {
+                String c = edge.getTarget().getAttribute("category");
+                if (c == null || c.isEmpty()) continue;
+                categoryCount.merge(c, 1, Integer::sum);
+                totalWatched++;
+            }
+        }
+
+        double maxBase = base.stream().mapToDouble(vs -> vs.finalScore).max().orElse(1.0);
+        if (maxBase <= 0) maxBase = 1.0;
+
+        final double NOVELTY_WEIGHT = 0.7;
+        List<VideoScore> rescored = new ArrayList<>(base.size());
+        for (VideoScore vs : base) {
+            String c = vs.video.getAttribute("category");
+            double novelty;
+            if (c == null || c.isEmpty()) {
+                novelty = 0.5;                 // unknown category — neutral, neither boosted nor buried
+            } else if (totalWatched == 0) {
+                novelty = 1.0;                 // no history yet — everything is "new"
+            } else {
+                double p = categoryCount.getOrDefault(c, 0) / (double) totalWatched;
+                novelty = 1.0 - p;             // never-watched category → 1.0; heavily-watched → low
+            }
+            double exploreScore = NOVELTY_WEIGHT * novelty
+                                + (1.0 - NOVELTY_WEIGHT) * (vs.finalScore / maxBase);
+            rescored.add(new VideoScore(vs.video, vs.distance, vs.pageRankScore, vs.popularityScore, exploreScore));
+        }
+        rescored.sort((a, b) -> Double.compare(b.finalScore, a.finalScore));
+        return rescored;
+    }
+
     private static long parseLongAttr(Node n, String key) {
         String s = n.getAttribute(key);
         if (s == null || s.isEmpty()) return 0L;

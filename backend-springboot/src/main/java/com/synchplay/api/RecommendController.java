@@ -30,13 +30,18 @@ public class RecommendController {
             @RequestParam(defaultValue = "0.3") double beta,
             @RequestParam(defaultValue = "0.2") double gamma,
             @RequestParam(defaultValue = "full") String prMode,
+            @RequestParam(defaultValue = "foryou") String mode,
             @RequestParam(defaultValue = "20") int top) {
 
         String graphNodeId = user.getGraphNodeId();
         Graph g = graphService.getGraph();
 
-        // excludeWatched=true: drop videos the user has already watched (closes the feedback loop)
-        List<Graph.VideoScore> scores = g.rankCandidatesByCompositeScore(graphNodeId, alpha, beta, gamma, prMode, true);
+        // excludeWatched=true: drop videos the user has already watched (closes the feedback loop).
+        // mode=explore re-ranks toward unfamiliar content categories (break the cocoon);
+        // mode=foryou (default) ranks by the relevance composite score.
+        List<Graph.VideoScore> scores = "explore".equals(mode)
+            ? g.rankCandidatesByExplore(graphNodeId, alpha, beta, gamma, prMode, true)
+            : g.rankCandidatesByCompositeScore(graphNodeId, alpha, beta, gamma, prMode, true);
 
         List<Map<String, Object>> items = scores.stream()
             .limit(top)
@@ -46,6 +51,7 @@ public class RecommendController {
                 m.put("title", vs.video.getDisplayName());
                 m.put("videoId", vs.video.getOriginalId());
                 m.put("channel", vs.video.getAttribute("channel"));
+                m.put("category", vs.video.getAttribute("category"));
                 m.put("views", vs.video.getAttribute("views"));
                 m.put("likes", vs.video.getAttribute("likes"));
                 m.put("distance", Math.round(vs.distance * 1000.0) / 1000.0);
@@ -69,6 +75,7 @@ public class RecommendController {
         result.put("beta",  Math.round(bN * 100.0) / 100.0);
         result.put("gamma", Math.round(gN * 100.0) / 100.0);
         result.put("prMode", prMode);
+        result.put("mode", mode);
         result.put("count", items.size());
         result.put("recommendations", items);
         return result;

@@ -13,7 +13,12 @@ const loading = ref(false);
 const error = ref("");
 const result = ref(null);
 const failedIds = ref({});
-const sortBy = ref("score");
+const mode = ref("foryou"); // "foryou" = relevance picks, "explore" = break-the-cocoon picks
+
+const MODES = [
+  { key: "foryou", label: "For You", hint: "Picks closest to your interests" },
+  { key: "explore", label: "Explore", hint: "Unfamiliar topics — break your bubble" },
+];
 
 const weightSum = computed(() => alpha.value + beta.value + gamma.value);
 const normalized = computed(() => {
@@ -26,18 +31,11 @@ const normalized = computed(() => {
   };
 });
 
-const visibleRecs = computed(() => {
-  const recs =
-    result.value?.recommendations.filter((v) => !failedIds.value[v.id]) ?? [];
-  const sorted = [...recs].sort((a, b) => {
-    if (sortBy.value === "score") return b.finalScore - a.finalScore;
-    if (sortBy.value === "views") return Number(b.views) - Number(a.views);
-    if (sortBy.value === "likes") return Number(b.likes) - Number(a.likes);
-    if (sortBy.value === "recent") return 0;
-    return 0;
-  });
-  return sorted;
-});
+// Order comes from the backend (relevance for "foryou", category-novelty for
+// "explore"); here we only drop dead/unplayable videos.
+const visibleRecs = computed(
+  () => result.value?.recommendations.filter((v) => !failedIds.value[v.id]) ?? []
+);
 
 const avgScore = computed(() => {
   if (visibleRecs.value.length === 0) return 0;
@@ -56,6 +54,7 @@ async function load() {
         beta: beta.value,
         gamma: gamma.value,
         prMode: prMode.value,
+        mode: mode.value,
         top: top.value,
       },
     });
@@ -65,6 +64,12 @@ async function load() {
   } finally {
     loading.value = false;
   }
+}
+
+function setMode(key) {
+  if (mode.value === key) return;
+  mode.value = key;
+  load(); // explore vs foryou is scored server-side, so refetch
 }
 
 function markFailed(id) {
@@ -95,18 +100,16 @@ onMounted(load);
     </div>
 
     <div class="controls-section">
-      <div class="sort-bar">
-        <span class="sort-label">Sort by</span>
-        <div class="sort-buttons">
-          <button
-            v-for="option in ['Score', 'Views', 'Likes', 'Recent']"
-            :key="option"
-            :class="['sort-btn', { active: sortBy === option.toLowerCase() }]"
-            @click="sortBy = option.toLowerCase()"
-          >
-            {{ option }}
-          </button>
-        </div>
+      <div class="mode-bar">
+        <button
+          v-for="m in MODES"
+          :key="m.key"
+          :class="['mode-btn', { active: mode === m.key }]"
+          @click="setMode(m.key)"
+        >
+          <span class="mode-label">{{ m.label }}</span>
+          <span class="mode-hint">{{ m.hint }}</span>
+        </button>
       </div>
     </div>
 
@@ -132,7 +135,10 @@ onMounted(load);
         <div class="card-body">
           <div class="card-header">
             <div class="title">{{ v.title }}</div>
-            <div class="channel">{{ v.channel }}</div>
+            <div class="channel">
+              {{ v.channel }}
+              <span v-if="v.category" class="category-chip">{{ v.category }}</span>
+            </div>
           </div>
           <div class="meta">
             <span>👁 {{ Number(v.views).toLocaleString() }}</span>
@@ -173,48 +179,48 @@ onMounted(load);
   margin-bottom: 32px;
 }
 
-.sort-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.sort-label {
-  font-size: 13px;
-  color: var(--text-dim);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.sort-buttons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.sort-btn {
+.mode-bar {
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
   background: var(--surface2);
+  border-radius: var(--radius-lg);
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  background: transparent;
   color: var(--text-dim);
-  border: none;
-  border-radius: var(--radius-full);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 8px 18px;
   cursor: pointer;
   transition: all var(--transition-base);
-  white-space: nowrap;
 }
 
-.sort-btn:hover {
-  border-color: var(--accent2);
-  color: var(--accent2);
-  background: rgba(83, 192, 240, 0.1);
+.mode-btn:hover {
+  color: var(--text);
 }
 
-.sort-btn.active {
-  background: var(--accent2);
-  color: #fff;
+.mode-btn.active {
+  background: var(--card-bg);
+  color: var(--text);
   border-color: var(--accent2);
+  box-shadow: var(--shadow-sm);
+}
+
+.mode-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mode-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 400;
 }
 
 .cards-grid {
@@ -307,6 +313,19 @@ onMounted(load);
   font-size: 12px;
   color: var(--accent2);
   font-weight: 500;
+}
+
+.category-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-dim);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  vertical-align: middle;
 }
 
 .meta {
